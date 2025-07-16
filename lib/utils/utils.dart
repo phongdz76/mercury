@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mercury_test/services/api_service.dart';
 
 class Utils {
   static String formatDate(DateTime date) {
@@ -109,5 +110,34 @@ class Utils {
 
     final index = id.hashCode % colors.length;
     return colors[index];
+  }
+
+  static Widget buildUserAvatar({
+    required String userId,
+    String? avatarUrl,
+    String? displayName,
+    double radius = 20,
+    Color? backgroundColor,
+  }) {
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: backgroundColor ?? getAvatarColor(userId),
+      backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+          ? NetworkImage(ApiService.getUserAvatarUrl(userId))
+          : null,
+      onBackgroundImageError: (exception, stackTrace) {
+        print('Error loading avatar for user $userId: $exception');
+      },
+      child: avatarUrl == null || avatarUrl.isEmpty
+          ? Text(
+              getInitials(displayName ?? 'Unknown'),
+              style: TextStyle(
+                fontSize: radius * 0.5,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            )
+          : null,
+    );
   }
 }

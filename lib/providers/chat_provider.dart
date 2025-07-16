@@ -208,6 +208,21 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateCurrentUser(User updatedUser) {
+    _currentUser = updatedUser;
+    notifyListeners();
+  }
+
+  Future<void> refreshProfile() async {
+    try {
+      _currentUser = await ApiService.getProfile();
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to refresh profile: $e';
+      notifyListeners();
+    }
+  }
+
   @override
   void dispose() {
     _webSocketService.dispose();

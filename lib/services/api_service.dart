@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/conversation.dart';
 import '../models/message.dart';
@@ -243,28 +245,149 @@ class ApiService {
   // User endpoints
   static Future<User> getCurrentUser() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/users/me'),
+      Uri.parse('$baseUrl/me'),
       headers: await getHeaders(),
     );
 
+    final responseBody = jsonDecode(response.body);
+    final data = responseBody['data'] ?? responseBody;
+
     if (response.statusCode == 200) {
-      return User.fromJson(jsonDecode(response.body));
+      return User.fromJson(data);
     } else {
       throw Exception('Failed to load current user: ${response.body}');
     }
   }
 
-  static Future<List<User>> searchUsers(String query) async {
+  static String getUserAvatarUrl(String userId) {
+    return '$baseUrl/users/$userId/avatar';
+  }
+
+  static Future<User> getUserById(String userId) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/users/search?q=$query'),
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: await getHeaders(),
+    );
+
+    final responseBody = jsonDecode(response.body);
+    final data = responseBody['data'] ?? responseBody;
+
+    if (response.statusCode == 200) {
+      return User.fromJson(data);
+    } else {
+      throw Exception('Failed to load user: ${response.body}');
+    }
+  }
+
+  // Profile endpoints
+  static Future<User> getProfile() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl${ApiConstants.profile}'),
       headers: await getHeaders(),
     );
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((json) => User.fromJson(json)).toList();
+      final responseBody = jsonDecode(response.body);
+      final userData = responseBody['data']['user'];
+      return User.fromJson(userData);
     } else {
-      throw Exception('Failed to search users: ${response.body}');
+      throw Exception('Failed to load profile: ${response.body}');
+    }
+  }
+
+  static Future<User> updateProfile({
+    required String username,
+    required String email,
+    String? fullName,
+    String? avatar,
+  }) async {
+    final body = {'username': username, 'email': email};
+
+    if (fullName != null) body['fullName'] = fullName;
+    if (avatar != null) body['avatar'] = avatar;
+
+    final response = await http.patch(
+      Uri.parse('$baseUrl${ApiConstants.profile}'),
+      headers: await getHeaders(),
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 200) {
+      final responseBody = jsonDecode(response.body);
+      final userData = responseBody['data']['user'];
+      return User.fromJson(userData);
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(
+        'Failed to update profile: ${errorData['message'] ?? response.body}',
+      );
+    }
+  }
+
+  static Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl${ApiConstants.changePassword}'),
+      headers: await getHeaders(),
+      body: jsonEncode({
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'confirmPassword': confirmPassword,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      final errorData = jsonDecode(response.body);
+      throw Exception(
+        'Failed to change password: ${errorData['message'] ?? response.body}',
+      );
+    }
+  }
+
+  // Upload avatar endpoint
+  static Future<String> uploadAvatar(File imageFile) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/upload/avatar'),
+      );
+
+      // Add headers
+      final headers = await getHeaders();
+      request.headers.addAll(headers);
+
+      // Add file to request
+      final fileStream = http.ByteStream(imageFile.openRead());
+      final fileLength = await imageFile.length();
+
+      final multipartFile = http.MultipartFile(
+        'file',
+        fileStream,
+        fileLength,
+        filename: imageFile.path.split('/').last,
+        contentType: MediaType('image', 'jpeg'), // Adjust based on file type
+      );
+
+      request.files.add(multipartFile);
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final jsonResponse = jsonDecode(responseBody);
+
+      if (response.statusCode == 200) {
+        // Return the avatar URL from response
+        return jsonResponse['data']['user']['avatar'] ??
+            jsonResponse['avatarUrl'];
+      } else {
+        throw Exception(
+          'Failed to upload avatar: ${jsonResponse['message'] ?? responseBody}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to upload avatar: $e');
     }
   }
 }

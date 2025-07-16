@@ -5,6 +5,7 @@ import '../models/conversation.dart';
 import '../constants/app_constants.dart';
 import '../utils/utils.dart';
 import 'chat_screen.dart';
+import 'profile_screen.dart';
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -30,6 +31,15 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () => _showCreateConversationDialog(context),

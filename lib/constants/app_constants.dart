@@ -8,6 +8,9 @@ class ApiConstants {
   static const String conversations = '/conversations';
   static const String messages = '/messages';
   static const String users = '/users';
+  static const String profile = '/me';
+  static const String changePassword = '/me/password';
+  static const String userAvatar = '/users'; // For /users/:id/avatar
 
   // WebSocket Event Types
   static const String joinConversation = 'join_conversation';
@@ -18,10 +21,10 @@ class ApiConstants {
   static const String ping = 'ping';
 
   // Message Types
-  static const String messageTypeText = 'TEXT';
-  static const String messageTypeImage = 'IMAGE';
-  static const String messageTypeFile = 'FILE';
-  static const String messageTypeSystem = 'SYSTEM';
+  static const String messageTypeText = 'text';
+  static const String messageTypeImage = 'image';
+  static const String messageTypeFile = 'file';
+  static const String messageTypeSystem = 'system';
 
   // Conversation Types
   static const String conversationTypeDirect =
@@ -48,4 +51,18 @@ class AppStrings {
   static const String directChat = 'Direct Chat';
   static const String groupChat = 'Group Chat';
   static const String someonTyping = 'Someone is typing...';
+
+  // Profile strings
+  static const String profile = 'Profile';
+  static const String editProfile = 'Edit Profile';
+  static const String changePassword = 'Change Password';
+  static const String username = 'Username';
+  static const String fullName = 'Full Name';
+  static const String currentPassword = 'Current Password';
+  static const String newPassword = 'New Password';
+  static const String confirmPassword = 'Confirm Password';
+  static const String save = 'Save';
+  static const String cancel = 'Cancel';
+  static const String profileUpdated = 'Profile updated successfully';
+  static const String passwordChanged = 'Password changed successfully';
 }
