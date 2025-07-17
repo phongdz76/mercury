@@ -7,6 +7,7 @@ import '../constants/app_constants.dart';
 import '../utils/utils.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
+import 'friends_screen.dart';
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -32,6 +33,15 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.people),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FriendsScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.person),
             onPressed: () {
@@ -77,15 +87,25 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           }
 
           if (chatProvider.conversations.isEmpty) {
-            return const Center(child: Text(AppStrings.noConversations));
+            return RefreshIndicator(
+              onRefresh: () async {
+                await chatProvider.refreshConversations();
+              },
+              child: const Center(child: Text(AppStrings.noConversations)),
+            );
           }
 
-          return ListView.builder(
-            itemCount: chatProvider.conversations.length,
-            itemBuilder: (context, index) {
-              final conversation = chatProvider.conversations[index];
-              return _buildConversationItem(context, conversation);
+          return RefreshIndicator(
+            onRefresh: () async {
+              await chatProvider.refreshConversations();
             },
+            child: ListView.builder(
+              itemCount: chatProvider.conversations.length,
+              itemBuilder: (context, index) {
+                final conversation = chatProvider.conversations[index];
+                return _buildConversationItem(context, conversation);
+              },
+            ),
           );
         },
       ),

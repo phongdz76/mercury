@@ -1,16 +1,34 @@
-import 'dart:convert';
+// Main API service that exports all individual services for backward compatibility
+export 'auth_service.dart';
+export 'base_service.dart';
+export 'conversation_service.dart';
+export 'friend_service.dart';
+export 'message_service.dart';
+export 'upload_service.dart';
+export 'user_service.dart';
+
+// Legacy API service class - kept for backward compatibility
+// Consider migrating to individual service classes
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/conversation.dart';
 import '../models/message.dart';
 import '../models/user.dart';
+import '../models/friend_user.dart';
+import '../models/friendship.dart';
+import '../models/user_with_friendship.dart';
 import '../constants/app_constants.dart';
+import 'auth_service.dart';
+import 'conversation_service.dart';
+import 'friend_service.dart';
+import 'message_service.dart';
+import 'upload_service.dart';
+import 'user_service.dart';
 
 class ApiService {
   static const String baseUrl = ApiConstants.baseUrl;
 
+  // Token management - use BaseService instead
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('jwt_token');
@@ -34,487 +52,165 @@ class ApiService {
     };
   }
 
-  // Auth endpoints
-  static Future<Map<String, dynamic>> login(
-    String email,
-    String password,
-  ) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/sign-in'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'identifier': email, 'password': password}),
-    );
-
-    final responseBody = jsonDecode(response.body);
-    final data = responseBody['data'] ?? responseBody;
-    if (response.statusCode == 200) {
-      if (data['tokens'] != null) {
-        await saveToken(data['tokens']['refreshToken']);
-      }
-      return data;
-    } else {
-      throw Exception('Login failed: ${data['message']}');
-    }
-  }
+  // Auth endpoints - use AuthService instead
+  static Future<Map<String, dynamic>> login(String email, String password) =>
+      AuthService.login(email, password);
 
   static Future<Map<String, dynamic>> register(
     String username,
     String email,
     String password,
-  ) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/sign-up'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': username,
-        'email': email,
-        'password': password,
-      }),
-    );
+  ) => AuthService.register(username, email, password);
 
-    final responseBody = jsonDecode(response.body);
-    final data = responseBody['data'] ?? responseBody;
+  // Conversation endpoints - use ConversationService instead
+  static Future<List<Conversation>> getConversations() =>
+      ConversationService.getConversations();
 
-    if (response.statusCode == 200) {
-      if (data['tokens'] != null) {
-        await saveToken(data['tokens']['refreshToken']);
-      }
-      return data;
-    } else {
-      throw Exception('Registration failed: ${data['message']}');
-    }
-  }
-
-  // Conversation endpoints
-  static Future<List<Conversation>> getConversations() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/conversations'),
-      headers: await getHeaders(),
-    );
-
-    final responseBody = jsonDecode(response.body);
-
-    if (response.statusCode == 200) {
-      // Fix: Handle the nested structure properly
-      final data = responseBody['data'];
-      if (data != null && data['conversations'] != null) {
-        final conversations = data['conversations'] as List<dynamic>;
-        return conversations
-            .map((json) => Conversation.fromJson(json))
-            .toList();
-      } else {
-        // Fallback for direct array response
-        final conversations = responseBody as List<dynamic>;
-        return conversations
-            .map((json) => Conversation.fromJson(json))
-            .toList();
-      }
-    } else {
-      throw Exception('Failed to load conversations: ${response.body}');
-    }
-  }
-
-  static Future<Conversation> getConversation(String id) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/conversations/$id'),
-      headers: await getHeaders(),
-    );
-
-    if (response.statusCode == 200) {
-      return Conversation.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to load conversation: ${response.body}');
-    }
-  }
+  static Future<Conversation> getConversation(String id) =>
+      ConversationService.getConversation(id);
 
   static Future<Conversation> createConversation({
     required String type,
     required List<String> participants,
     String? title,
     String? description,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/conversations'),
-      headers: await getHeaders(),
-      body: jsonEncode({
-        'type': type,
-        'participants': participants,
-        'title': title,
-        'description': description,
-      }),
-    );
+  }) => ConversationService.createConversation(
+    type: type,
+    participants: participants,
+    title: title,
+    description: description,
+  );
 
-    if (response.statusCode == 201) {
-      return Conversation.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to create conversation: ${response.body}');
-    }
-  }
-
-  // Message endpoints
+  // Message endpoints - use MessageService instead
   static Future<List<Message>> getMessages(
     String conversationId, {
     int page = 1,
     int limit = 50,
-  }) async {
-    final response = await http.get(
-      Uri.parse(
-        '$baseUrl/conversations/$conversationId/messages?page=$page&limit=$limit',
-      ),
-      headers: await getHeaders(),
-    );
-
-    if (response.statusCode == 200) {
-      final responseBody = jsonDecode(response.body);
-      final data = responseBody['data'];
-
-      if (data != null && data['messages'] != null) {
-        final List<dynamic> messages = data['messages'];
-        return messages.map((json) => Message.fromJson(json)).toList();
-      } else {
-        final List<dynamic> messages = responseBody as List<dynamic>;
-        return messages.map((json) => Message.fromJson(json)).toList();
-      }
-    } else {
-      throw Exception('Failed to load messages: ${response.body}');
-    }
-  }
+  }) => MessageService.getMessages(conversationId, page: page, limit: limit);
 
   static Future<Message> sendMessage({
     required String conversationId,
     required String content,
     required String type,
     String? replyTo,
-  }) async {
-    final body = {'content': content, 'type': type};
+  }) => MessageService.sendMessage(
+    conversationId: conversationId,
+    content: content,
+    type: type,
+    replyTo: replyTo,
+  );
 
-    // Chỉ thêm replyTo nếu nó không null
-    if (replyTo != null) {
-      body['replyTo'] = replyTo;
-    }
+  static Future<Message> editMessage(String messageId, String content) =>
+      MessageService.editMessage(messageId, content);
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/conversations/$conversationId/messages'),
-      headers: await getHeaders(),
-      body: jsonEncode(body),
-    );
+  static Future<void> deleteMessage(String messageId) =>
+      MessageService.deleteMessage(messageId);
 
-    if (response.statusCode == 201) {
-      return Message.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to send message: ${response.body}');
-    }
-  }
+  static Future<void> markAsRead(String messageId) =>
+      MessageService.markAsRead(messageId);
 
-  static Future<Message> editMessage(String messageId, String content) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/messages/$messageId'),
-      headers: await getHeaders(),
-      body: jsonEncode({'content': content}),
-    );
+  // User endpoints - use UserService instead
+  static Future<User> getCurrentUser() => UserService.getCurrentUser();
 
-    if (response.statusCode == 200) {
-      return Message.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to edit message: ${response.body}');
-    }
-  }
+  static String getUserAvatarUrl(String userId) =>
+      UserService.getUserAvatarUrl(userId);
 
-  static Future<void> deleteMessage(String messageId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/messages/$messageId'),
-      headers: await getHeaders(),
-    );
+  static Future<User> getUserById(String userId) =>
+      UserService.getUserById(userId);
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to delete message: ${response.body}');
-    }
-  }
-
-  static Future<void> markAsRead(String messageId) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/messages/$messageId/read'),
-      headers: await getHeaders(),
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Failed to mark message as read: ${response.body}');
-    }
-  }
-
-  // User endpoints
-  static Future<User> getCurrentUser() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/me'),
-      headers: await getHeaders(),
-    );
-
-    final responseBody = jsonDecode(response.body);
-    final data = responseBody['data'] ?? responseBody;
-
-    if (response.statusCode == 200) {
-      return User.fromJson(data);
-    } else {
-      throw Exception('Failed to load current user: ${response.body}');
-    }
-  }
-
-  static String getUserAvatarUrl(String userId) {
-    return '$baseUrl/users/$userId/avatar';
-  }
-
-  static Future<User> getUserById(String userId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/users/$userId'),
-      headers: await getHeaders(),
-    );
-
-    final responseBody = jsonDecode(response.body);
-    final data = responseBody['data'] ?? responseBody;
-
-    if (response.statusCode == 200) {
-      return User.fromJson(data['user'] ?? data);
-    } else {
-      throw Exception('Failed to load user: ${response.body}');
-    }
-  }
-
-  // Profile endpoints
-  static Future<User> getProfile() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl${ApiConstants.profile}'),
-      headers: await getHeaders(),
-    );
-
-    if (response.statusCode == 200) {
-      final responseBody = jsonDecode(response.body);
-      final userData = responseBody['data']['user'];
-      return User.fromJson(userData);
-    } else {
-      throw Exception('Failed to load profile: ${response.body}');
-    }
-  }
+  static Future<User> getProfile() => UserService.getProfile();
 
   static Future<User> updateProfile({
     required String username,
     required String email,
     String? fullName,
     String? avatar,
-  }) async {
-    final body = {'username': username, 'email': email};
-
-    if (fullName != null) body['fullName'] = fullName;
-    if (avatar != null) body['avatar'] = avatar;
-
-    final response = await http.patch(
-      Uri.parse('$baseUrl${ApiConstants.profile}'),
-      headers: await getHeaders(),
-      body: jsonEncode(body),
-    );
-
-    if (response.statusCode == 200) {
-      final responseBody = jsonDecode(response.body);
-      final userData = responseBody['data']['user'];
-      return User.fromJson(userData);
-    } else {
-      final errorData = jsonDecode(response.body);
-      throw Exception(
-        'Failed to update profile: ${errorData['message'] ?? response.body}',
-      );
-    }
-  }
+  }) => UserService.updateProfile(
+    username: username,
+    email: email,
+    fullName: fullName,
+    avatar: avatar,
+  );
 
   static Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
     required String confirmPassword,
-  }) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl${ApiConstants.changePassword}'),
-      headers: await getHeaders(),
-      body: jsonEncode({
-        'currentPassword': currentPassword,
-        'newPassword': newPassword,
-        'confirmPassword': confirmPassword,
-      }),
-    );
+  }) => UserService.changePassword(
+    currentPassword: currentPassword,
+    newPassword: newPassword,
+    confirmPassword: confirmPassword,
+  );
 
-    if (response.statusCode != 200) {
-      final errorData = jsonDecode(response.body);
-      throw Exception(
-        'Failed to change password: ${errorData['message'] ?? response.body}',
-      );
-    }
-  }
+  // Upload endpoints - use UploadService instead
+  static Future<String> uploadAvatar(File imageFile) =>
+      UploadService.uploadAvatar(imageFile);
 
-  // Upload avatar endpoint
-  static Future<String> uploadAvatar(File imageFile) async {
-    try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/upload/avatar'),
-      );
-
-      // Add headers
-      final headers = await getHeaders();
-      request.headers.addAll(headers);
-
-      // Add file to request
-      final fileStream = http.ByteStream(imageFile.openRead());
-      final fileLength = await imageFile.length();
-
-      final multipartFile = http.MultipartFile(
-        'file',
-        fileStream,
-        fileLength,
-        filename: imageFile.path.split('/').last,
-        contentType: MediaType('image', 'jpeg'), // Adjust based on file type
-      );
-
-      request.files.add(multipartFile);
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      final jsonResponse = jsonDecode(responseBody);
-
-      if (response.statusCode == 200) {
-        // Return the avatar URL from response
-        return jsonResponse['data']['user']['avatar'] ??
-            jsonResponse['avatarUrl'];
-      } else {
-        throw Exception(
-          'Failed to upload avatar: ${jsonResponse['message'] ?? responseBody}',
-        );
-      }
-    } catch (e) {
-      throw Exception('Failed to upload avatar: $e');
-    }
-  }
-
-  // Upload file for messages
-  // Hàm helper để xác định mimetype
-  static String getMimeType(String filePath) {
-    final extension = filePath.split('.').last.toLowerCase();
-
-    final mimeTypeMap = {
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'gif': 'image/gif',
-      'webp': 'image/webp',
-      'bmp': 'image/bmp',
-      'tiff': 'image/tiff',
-      'svg': 'image/svg+xml',
-      'pdf': 'application/pdf',
-      'doc': 'application/msword',
-      'docx':
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'txt': 'text/plain',
-      'mp4': 'video/mp4',
-      'mp3': 'audio/mpeg',
-      'wav': 'audio/wav',
-      'zip': 'application/zip',
-      'rar': 'application/x-rar-compressed',
-    };
-
-    return mimeTypeMap[extension] ?? 'application/octet-stream';
-  }
+  static String getMimeType(String filePath) =>
+      UploadService.getMimeType(filePath);
 
   static Future<Map<String, dynamic>> uploadMessageFile(
     File file,
     String conversationId,
-  ) async {
-    try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/upload/attachment'),
-      );
+  ) => UploadService.uploadMessageFile(file, conversationId);
 
-      // Add headers
-      final headers = await getHeaders();
-      request.headers.addAll(headers);
-
-      // Add file to request
-      final fileStream = http.ByteStream(file.openRead());
-      final fileLength = await file.length();
-
-      // Determine content type based on file extension
-      final mimetype = getMimeType(file.path);
-
-      final multipartFile = http.MultipartFile(
-        'file',
-        fileStream,
-        fileLength,
-        filename: file.path.split('/').last,
-        contentType: MediaType.parse(mimetype),
-      );
-
-      request.files.add(multipartFile);
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-      final jsonResponse = jsonDecode(responseBody);
-
-      if (response.statusCode == 200) {
-        // Return comprehensive file info including mimetype
-        return {
-          'url': jsonResponse['data']['file']['url'] ?? jsonResponse['fileUrl'],
-          'name':
-              jsonResponse['data']['file']['name'] ?? file.path.split('/').last,
-          'size': jsonResponse['data']['file']['size'] ?? fileLength,
-          'type': jsonResponse['data']['file']['type'] ?? 'FILE',
-          'mimetype': mimetype, // Thêm mimetype vào response
-        };
-      } else {
-        throw Exception(
-          'Failed to upload file: ${jsonResponse['message'] ?? responseBody}',
-        );
-      }
-    } catch (e) {
-      throw Exception('Failed to upload file: $e');
-    }
-  }
-
-  // Send message with file attachment
+  // Send message with file attachment - use MessageService instead
   static Future<Message> sendMessageWithFile({
     required String conversationId,
     required String content,
     required String type,
     required String fileUrl,
     required String fileName,
-    required String mimeType, // Thêm parameter mimetype
+    required String mimeType,
     required int fileSize,
     String? replyTo,
-  }) async {
-    final body = {
-      'content': content,
-      'type': type,
-      'attachments': [
-        {
-          'name': fileName,
-          'url': fileUrl,
-          'type': type,
-          'mimeType': mimeType, // Thêm mimetype vào attachment
-          'size': fileSize,
-        },
-      ],
-    };
+  }) => MessageService.sendMessageWithFile(
+    conversationId: conversationId,
+    content: content,
+    type: type,
+    fileUrl: fileUrl,
+    fileName: fileName,
+    mimeType: mimeType,
+    fileSize: fileSize,
+    replyTo: replyTo,
+  );
 
-    // Add replyTo if provided
-    if (replyTo != null) {
-      body['replyTo'] = replyTo;
-    }
+  // Friend endpoints - use FriendService instead
+  static Future<List<FriendUser>> getFriends() => FriendService.getFriends();
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/conversations/$conversationId/messages'),
-      headers: await getHeaders(),
-      body: jsonEncode(body),
-    );
+  static Future<List<Friendship>> getPendingRequests() =>
+      FriendService.getPendingRequests();
 
-    if (response.statusCode == 201) {
-      return Message.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to send message with file: ${response.body}');
-    }
-  }
+  static Future<List<Friendship>> getSentRequests() =>
+      FriendService.getSentRequests();
+
+  static Future<List<UserWithFriendship>> searchUsers(String query) =>
+      FriendService.searchUsers(query);
+
+  static Future<Friendship> sendFriendRequest(String userId) =>
+      FriendService.sendFriendRequest(userId);
+
+  static Future<Friendship> acceptFriendRequest(String requestId) =>
+      FriendService.acceptFriendRequest(requestId);
+
+  static Future<Friendship> rejectFriendRequest(String requestId) =>
+      FriendService.rejectFriendRequest(requestId);
+
+  static Future<void> cancelFriendRequest(String requestId) =>
+      FriendService.cancelFriendRequest(requestId);
+
+  static Future<void> removeFriend(String friendshipId) =>
+      FriendService.removeFriend(friendshipId);
+
+  static Future<Friendship> blockUser(String userId) =>
+      FriendService.blockUser(userId);
+
+  static Future<void> unblockUser(String userId) =>
+      FriendService.unblockUser(userId);
+
+  static Future<List<User>> getBlockedUsers() =>
+      FriendService.getBlockedUsers();
+
+  static Future<FriendshipStatus?> getFriendshipStatus(String userId) =>
+      FriendService.getFriendshipStatus(userId);
 }

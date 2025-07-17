@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/friend_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/conversations_screen.dart';
 import 'services/api_service.dart';
+import 'services/websocket_service.dart';
 import 'constants/app_theme.dart';
 import 'constants/app_constants.dart';
 
@@ -16,8 +18,13 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ChatProvider(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ChatProvider()),
+        ChangeNotifierProvider(
+          create: (context) => FriendProvider(WebSocketService()),
+        ),
+      ],
       child: MaterialApp(
         title: AppStrings.appName,
         theme: AppTheme.lightTheme,
