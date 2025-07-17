@@ -119,16 +119,20 @@ class Utils {
     double radius = 20,
     Color? backgroundColor,
   }) {
+    final hasAvatar = avatarUrl != null && avatarUrl.isNotEmpty;
+
     return CircleAvatar(
       radius: radius,
       backgroundColor: backgroundColor ?? getAvatarColor(userId),
-      backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+      backgroundImage: hasAvatar
           ? NetworkImage(ApiService.getUserAvatarUrl(userId))
           : null,
-      onBackgroundImageError: (exception, stackTrace) {
-        print('Error loading avatar for user $userId: $exception');
-      },
-      child: avatarUrl == null || avatarUrl.isEmpty
+      onBackgroundImageError: hasAvatar
+          ? (exception, stackTrace) {
+              print('Error loading avatar for user $userId: $exception');
+            }
+          : null,
+      child: !hasAvatar
           ? Text(
               getInitials(displayName ?? 'Unknown'),
               style: TextStyle(

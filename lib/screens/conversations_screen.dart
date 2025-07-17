@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mercury_test/models/user.dart';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../models/conversation.dart';
@@ -120,54 +121,196 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
     BuildContext context,
     Conversation conversation,
   ) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue,
-          child: Text(
-            conversation.title?.isNotEmpty == true
-                ? conversation.title![0].toUpperCase()
-                : conversation.type == 'DIRECT'
-                ? 'D'
-                : 'G',
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
-        title: Text(
-          conversation.title ??
-              (conversation.type == ApiConstants.conversationTypeDirect
-                  ? AppStrings.directChat
-                  : AppStrings.groupChat),
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Text(
-          conversation.type == ApiConstants.conversationTypeDirect
-              ? 'Direct message'
-              : '${conversation.participants.length} members',
-          style: const TextStyle(color: Colors.grey),
-        ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              Utils.formatDate(conversation.lastActivity),
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            if (conversation.isActive)
-              const Icon(Icons.circle, color: Colors.green, size: 8),
-          ],
-        ),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChatScreen(conversation: conversation),
+    final chatProvider = context.read<ChatProvider>();
+
+    if (conversation.type == ApiConstants.conversationTypeDirect) {
+      // Get the other participant's ID
+      final otherParticipantId = chatProvider.getOtherParticipant(conversation);
+
+      return FutureBuilder<User?>(
+        future: chatProvider.getUser(otherParticipantId),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.grey[300],
+                  child: const CircularProgressIndicator(strokeWidth: 2),
+                ),
+                title: const Text('Loading...'),
+                subtitle: const Text(''),
+              ),
+            );
+          }
+
+          final user = snapshot.data;
+          final displayName = user?.fullName?.isNotEmpty == true
+              ? user!.fullName!
+              : user?.username ?? 'Unknown User';
+
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: ListTile(
+              leading: Stack(
+                children: [
+                  Utils.buildUserAvatar(
+                    userId: otherParticipantId,
+                    avatarUrl: user?.avatar,
+                    displayName: displayName,
+                    radius: 24,
+                  ),
+                  // Online indicator
+                  if (user?.isOnline == true)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      displayName,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (user?.isOnline == true)
+                    const Icon(Icons.circle, color: Colors.green, size: 8),
+                ],
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (conversation.lastMessage != null)
+                    Text(
+                      conversation.lastMessage!,
+                      style: const TextStyle(color: Colors.grey),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  else
+                    const Text(
+                      'No messages yet',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  const SizedBox(height: 2),
+                  if (user?.isOnline == true)
+                    const Text(
+                      'Online',
+                      style: TextStyle(color: Colors.green, fontSize: 12),
+                    )
+                  else if (user?.lastSeen != null)
+                    Text(
+                      'Last seen ${Utils.formatTime(user!.lastSeen!)}',
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    )
+                  else
+                    const Text(
+                      'Offline',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                ],
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    Utils.formatDate(conversation.lastActivity),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 4),
+                  if (conversation.isActive)
+                    const Icon(Icons.circle, color: Colors.blue, size: 8),
+                ],
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ChatScreen(conversation: conversation),
+                  ),
+                );
+              },
             ),
           );
         },
-      ),
-    );
+      );
+    } else {
+      // Group conversation
+      return Card(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: Colors.blue,
+            child: Text(
+              conversation.title?.isNotEmpty == true
+                  ? conversation.title![0].toUpperCase()
+                  : 'G',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          title: Text(
+            conversation.title ?? AppStrings.groupChat,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (conversation.lastMessage != null)
+                Text(
+                  conversation.lastMessage!,
+                  style: const TextStyle(color: Colors.grey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              else
+                const Text(
+                  'No messages yet',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              const SizedBox(height: 2),
+              Text(
+                '${conversation.participants.length} members',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+          ),
+          trailing: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                Utils.formatDate(conversation.lastActivity),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 4),
+              if (conversation.isActive)
+                const Icon(Icons.circle, color: Colors.blue, size: 8),
+            ],
+          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChatScreen(conversation: conversation),
+              ),
+            );
+          },
+        ),
+      );
+    }
   }
 
   void _showCreateConversationDialog(BuildContext context) {

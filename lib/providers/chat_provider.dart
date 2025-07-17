@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../models/conversation.dart';
@@ -13,6 +14,7 @@ class ChatProvider extends ChangeNotifier {
   List<Conversation> _conversations = [];
   Map<String, List<Message>> _messages = {};
   Map<String, bool> _typingUsers = {};
+  Map<String, User> _userCache = {}; // Add user cache
   bool _isLoading = false;
   String? _error;
 
@@ -21,6 +23,7 @@ class ChatProvider extends ChangeNotifier {
   List<Conversation> get conversations => _conversations;
   Map<String, List<Message>> get messages => _messages;
   Map<String, bool> get typingUsers => _typingUsers;
+  Map<String, User> get userCache => _userCache; // Add getter for user cache
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isConnected => _webSocketService.isConnected;
@@ -179,7 +182,11 @@ class ChatProvider extends ChangeNotifier {
     try {
       final conversation = await ApiService.createConversation(
         type: type,
-        participants: participants,
+        // include myself as a participant
+        participants: [
+          if (_currentUser != null) _currentUser!.id,
+          ...participants,
+        ],
         title: title,
       );
       _conversations.insert(0, conversation);
@@ -198,18 +205,70 @@ class ChatProvider extends ChangeNotifier {
     _webSocketService.markAsRead(conversationId, messageId);
   }
 
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
+  // Upload file and send message
+  Future<void> sendMessageWithFile({
+    required String conversationId,
+    required File file,
+    required String type,
+    String? caption,
+    String? replyTo,
+  }) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      // Upload file first
+      final uploadResponse = await ApiService.uploadMessageFile(
+        file,
+        conversationId,
+      );
+      final fileUrl = uploadResponse['url'] as String;
+
+      // Get file info
+      final fileName = file.path.split('/').last;
+      final fileSize = await file.length();
+
+      // Send message with file attachment
+      final message = await ApiService.sendMessageWithFile(
+        conversationId: conversationId,
+        content: caption ?? fileName,
+        type: type,
+        fileUrl: fileUrl,
+        mimeType: file.path.split('.').last,
+        fileName: fileName,
+        fileSize: fileSize,
+        replyTo: replyTo,
+      );
+
+      // Add to local messages
+      if (!_messages.containsKey(conversationId)) {
+        _messages[conversationId] = [];
+      }
+      _messages[conversationId]!.add(message);
+      _messages[conversationId]!.sort(
+        (a, b) => a.createdAt.compareTo(b.createdAt),
+      );
+
+      // Also send via WebSocket for real-time
+      _webSocketService.sendMessage(
+        conversationId: conversationId,
+        content: caption ?? fileName,
+        type: type,
+        replyTo: replyTo,
+      );
+
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _isLoading = false;
+      _error = 'Failed to send file: $e';
+      notifyListeners();
+    }
   }
 
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
-  void updateCurrentUser(User updatedUser) {
-    _currentUser = updatedUser;
+  // Update current user (for profile updates)
+  void updateCurrentUser(User user) {
+    _currentUser = user;
     notifyListeners();
   }
 
@@ -221,6 +280,39 @@ class ChatProvider extends ChangeNotifier {
       _error = 'Failed to refresh profile: $e';
       notifyListeners();
     }
+  }
+
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
+  Future<User?> getUser(String userId) async {
+    // Check cache first
+    if (_userCache.containsKey(userId)) {
+      return _userCache[userId];
+    }
+
+    try {
+      final user = await ApiService.getUserById(userId);
+      _userCache[userId] = user;
+      return user;
+    } catch (e) {
+      print('Error fetching user $userId: $e');
+      return null;
+    }
+  }
+
+  String getOtherParticipant(Conversation conversation) {
+    return conversation.participants.firstWhere(
+      (id) => id != _currentUser?.id,
+      orElse: () => conversation.participants.first,
+    );
   }
 
   @override

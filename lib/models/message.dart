@@ -91,6 +91,7 @@ class MessageAttachment {
   final String name;
   final String url;
   final String type;
+  final String mimeType; // Thêm field mimetype
   final int size;
 
   MessageAttachment({
@@ -98,6 +99,7 @@ class MessageAttachment {
     required this.name,
     required this.url,
     required this.type,
+    required this.mimeType, // Thêm vào constructor
     required this.size,
   });
 
@@ -107,12 +109,20 @@ class MessageAttachment {
       name: json['name'] ?? '',
       url: json['url'] ?? '',
       type: json['type'] ?? '',
+      mimeType: json['mimeType'] ?? '', // Thêm vào fromJson
       size: json['size'] ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name, 'url': url, 'type': type, 'size': size};
+    return {
+      'id': id,
+      'name': name,
+      'url': url,
+      'type': type,
+      'mimeType': mimeType, // Thêm vào toJson
+      'size': size,
+    };
   }
 }
 

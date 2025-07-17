@@ -6,7 +6,6 @@ import '../providers/chat_provider.dart';
 import '../services/api_service.dart';
 import '../constants/app_constants.dart';
 import '../utils/utils.dart';
-import '../models/user.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -57,7 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             : null,
                         onBackgroundImageError: (exception, stackTrace) {
                           // Handle image loading error
-                          print('Error loading avatar: $exception');
+                          // print('Error loading avatar: $exception');
                         },
                         child: user.avatar == null || user.avatar!.isEmpty
                             ? Text(
@@ -324,7 +323,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ? FileImage(_selectedImage!)
                           : _getCurrentUserAvatarImage(),
                       onBackgroundImageError: (exception, stackTrace) {
-                        print('Error loading avatar: $exception');
+                        // print('Error loading avatar: $exception');
                       },
                       child: _selectedImage == null && !_hasCurrentUserAvatar()
                           ? Icon(

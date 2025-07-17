@@ -1,6 +1,6 @@
 class ApiConstants {
-  static const String baseUrl = 'http://192.168.1.4:3000';
-  static const String wsUrl = 'ws://192.168.1.4:3000/chat/ws';
+  static const String baseUrl = 'http://localhost:3000';
+  static const String wsUrl = 'ws://localhost:3000/chat/ws';
 
   // API Endpoints
   static const String authLogin = '/auth/login';
@@ -65,4 +65,13 @@ class AppStrings {
   static const String cancel = 'Cancel';
   static const String profileUpdated = 'Profile updated successfully';
   static const String passwordChanged = 'Password changed successfully';
+
+  // File upload strings
+  static const String gallery = 'Gallery';
+  static const String camera = 'Camera';
+  static const String file = 'File';
+  static const String uploadingFile = 'Uploading file...';
+  static const String uploadingImage = 'Uploading image...';
+  static const String failedToUpload = 'Failed to upload';
+  static const String selectAttachment = 'Select attachment';
 }

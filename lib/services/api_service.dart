@@ -273,7 +273,7 @@ class ApiService {
     final data = responseBody['data'] ?? responseBody;
 
     if (response.statusCode == 200) {
-      return User.fromJson(data);
+      return User.fromJson(data['user'] ?? data);
     } else {
       throw Exception('Failed to load user: ${response.body}');
     }
@@ -388,6 +388,133 @@ class ApiService {
       }
     } catch (e) {
       throw Exception('Failed to upload avatar: $e');
+    }
+  }
+
+  // Upload file for messages
+  // Hàm helper để xác định mimetype
+  static String getMimeType(String filePath) {
+    final extension = filePath.split('.').last.toLowerCase();
+
+    final mimeTypeMap = {
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'png': 'image/png',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'bmp': 'image/bmp',
+      'tiff': 'image/tiff',
+      'svg': 'image/svg+xml',
+      'pdf': 'application/pdf',
+      'doc': 'application/msword',
+      'docx':
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'txt': 'text/plain',
+      'mp4': 'video/mp4',
+      'mp3': 'audio/mpeg',
+      'wav': 'audio/wav',
+      'zip': 'application/zip',
+      'rar': 'application/x-rar-compressed',
+    };
+
+    return mimeTypeMap[extension] ?? 'application/octet-stream';
+  }
+
+  static Future<Map<String, dynamic>> uploadMessageFile(
+    File file,
+    String conversationId,
+  ) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$baseUrl/upload/attachment'),
+      );
+
+      // Add headers
+      final headers = await getHeaders();
+      request.headers.addAll(headers);
+
+      // Add file to request
+      final fileStream = http.ByteStream(file.openRead());
+      final fileLength = await file.length();
+
+      // Determine content type based on file extension
+      final mimetype = getMimeType(file.path);
+
+      final multipartFile = http.MultipartFile(
+        'file',
+        fileStream,
+        fileLength,
+        filename: file.path.split('/').last,
+        contentType: MediaType.parse(mimetype),
+      );
+
+      request.files.add(multipartFile);
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final jsonResponse = jsonDecode(responseBody);
+
+      if (response.statusCode == 200) {
+        // Return comprehensive file info including mimetype
+        return {
+          'url': jsonResponse['data']['file']['url'] ?? jsonResponse['fileUrl'],
+          'name':
+              jsonResponse['data']['file']['name'] ?? file.path.split('/').last,
+          'size': jsonResponse['data']['file']['size'] ?? fileLength,
+          'type': jsonResponse['data']['file']['type'] ?? 'FILE',
+          'mimetype': mimetype, // Thêm mimetype vào response
+        };
+      } else {
+        throw Exception(
+          'Failed to upload file: ${jsonResponse['message'] ?? responseBody}',
+        );
+      }
+    } catch (e) {
+      throw Exception('Failed to upload file: $e');
+    }
+  }
+
+  // Send message with file attachment
+  static Future<Message> sendMessageWithFile({
+    required String conversationId,
+    required String content,
+    required String type,
+    required String fileUrl,
+    required String fileName,
+    required String mimeType, // Thêm parameter mimetype
+    required int fileSize,
+    String? replyTo,
+  }) async {
+    final body = {
+      'content': content,
+      'type': type,
+      'attachments': [
+        {
+          'name': fileName,
+          'url': fileUrl,
+          'type': type,
+          'mimeType': mimeType, // Thêm mimetype vào attachment
+          'size': fileSize,
+        },
+      ],
+    };
+
+    // Add replyTo if provided
+    if (replyTo != null) {
+      body['replyTo'] = replyTo;
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/conversations/$conversationId/messages'),
+      headers: await getHeaders(),
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 201) {
+      return Message.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to send message with file: ${response.body}');
     }
   }
 }
