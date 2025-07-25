@@ -87,12 +87,6 @@ class ChatProvider extends ChangeNotifier {
       final conversationId = event.conversationId;
 
       if (conversationId != null) {
-        // Skip messages from current user to avoid duplicates
-        // (current user's messages are handled via optimistic updates)
-        if (message.sender == _currentUser?.id) {
-          return;
-        }
-
         // Add message to messages list
         if (!_messages.containsKey(conversationId)) {
           _messages[conversationId] = [];
@@ -115,45 +109,7 @@ class ChatProvider extends ChangeNotifier {
         }
 
         // Update the conversation's last message and last activity
-        final conversationIndex = _conversations.indexWhere(
-          (c) => c.id == conversationId,
-        );
-        if (conversationIndex != -1) {
-          final conversation = _conversations[conversationIndex];
-
-          // Format last message based on message type
-          String lastMessage = message.content;
-          if (message.type == 'image') {
-            lastMessage = '📷 Image';
-          } else if (message.type == 'file') {
-            lastMessage = '📁 File';
-          } else if (message.type == 'audio') {
-            lastMessage = '🎵 Audio';
-          } else if (message.type == 'video') {
-            lastMessage = '🎥 Video';
-          } else if (message.type == 'location') {
-            lastMessage = '📍 Location';
-          }
-
-          final updatedConversation = Conversation(
-            id: conversation.id,
-            type: conversation.type,
-            participants: conversation.participants,
-            title: conversation.title,
-            description: conversation.description,
-            createdBy: conversation.createdBy,
-            lastMessage: lastMessage,
-            lastActivity: message.createdAt,
-            isActive: conversation.isActive,
-            createdAt: conversation.createdAt,
-            updatedAt: DateTime.now(),
-          );
-
-          _conversations[conversationIndex] = updatedConversation;
-
-          // Sort conversations by last activity
-          _sortConversations();
-        }
+        _updateConversationLastMessage(conversationId, message);
 
         notifyListeners();
       }
@@ -530,6 +486,47 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _updateConversationLastMessage(String conversationId, Message message) {
+    final conversationIndex = _conversations.indexWhere(
+      (c) => c.id == conversationId,
+    );
+
+    if (conversationIndex != -1) {
+      final conversation = _conversations[conversationIndex];
+
+      // Format last message based on message type
+      String lastMessage = message.content;
+      if (message.type == 'image') {
+        lastMessage = '📷 Image';
+      } else if (message.type == 'file') {
+        lastMessage = '📁 File';
+      } else if (message.type == 'audio') {
+        lastMessage = '🎵 Audio';
+      } else if (message.type == 'video') {
+        lastMessage = '🎥 Video';
+      } else if (message.type == 'location') {
+        lastMessage = '📍 Location';
+      }
+
+      final updatedConversation = Conversation(
+        id: conversation.id,
+        type: conversation.type,
+        participants: conversation.participants,
+        title: conversation.title,
+        description: conversation.description,
+        createdBy: conversation.createdBy,
+        lastMessage: lastMessage,
+        lastActivity: message.createdAt,
+        isActive: conversation.isActive,
+        createdAt: conversation.createdAt,
+        updatedAt: DateTime.now(),
+      );
+
+      _conversations[conversationIndex] = updatedConversation;
+      _sortConversations();
+    }
+  }
+
   Future<void> sendMessage({
     required String conversationId,
     required String content,
@@ -537,63 +534,14 @@ class ChatProvider extends ChangeNotifier {
     String? replyTo,
   }) async {
     try {
-      // Create optimistic message for immediate UI update
-      final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
-      final optimisticMessage = Message(
-        id: tempId,
-        conversationId: conversationId,
-        sender: _currentUser?.id ?? '',
-        content: content,
-        type: type,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        replyTo: replyTo,
-        readBy: [],
-        attachments: [],
-        isEdited: false,
-        isDeleted: false,
-        editedAt: null,
-        deletedAt: null,
-      );
-
-      // Add optimistic message to local messages immediately
-      if (!_messages.containsKey(conversationId)) {
-        _messages[conversationId] = [];
-      }
-      _messages[conversationId]!.add(optimisticMessage);
-      _messages[conversationId]!.sort(
-        (a, b) => a.createdAt.compareTo(b.createdAt),
-      );
-      notifyListeners();
-
-      // Send via REST API (primary method)
-      final sentMessage = await ApiService.sendMessage(
+      // Send via WebSocket only
+      _webSocketService.sendMessage(
         conversationId: conversationId,
         content: content,
         type: type,
         replyTo: replyTo,
       );
-
-      // Replace optimistic message with real message
-      final messageIndex = _messages[conversationId]!.indexWhere(
-        (m) => m.id == tempId,
-      );
-      
-      if (messageIndex != -1) {
-        _messages[conversationId]![messageIndex] = sentMessage;
-      } else {
-        // Fallback: add message if optimistic message not found
-        _messages[conversationId]!.add(sentMessage);
-        _messages[conversationId]!.sort(
-          (a, b) => a.createdAt.compareTo(b.createdAt),
-        );
-      }
-
-      notifyListeners();
     } catch (e) {
-      // Remove optimistic message on error  
-      _messages[conversationId]?.removeWhere((m) => m.id.startsWith('temp_'));
-      
       _error = 'Failed to send message: $e';
       notifyListeners();
     }
@@ -644,47 +592,12 @@ class ChatProvider extends ChangeNotifier {
       notifyListeners();
 
       // Upload file first
-      final uploadResponse = await ApiService.uploadMessageFile(
-        file,
-        conversationId,
-      );
-      final fileUrl = uploadResponse['url'] as String;
+      await ApiService.uploadMessageFile(file, conversationId);
 
       // Get file info
       final fileName = file.path.split('/').last;
-      final fileSize = await file.length();
 
-      // Send message with file attachment
-      final message = await ApiService.sendMessageWithFile(
-        conversationId: conversationId,
-        content: caption ?? fileName,
-        type: type,
-        fileUrl: fileUrl,
-        mimeType: file.path.split('.').last,
-        fileName: fileName,
-        fileSize: fileSize,
-        replyTo: replyTo,
-      );
-
-      // Add to local messages
-      if (!_messages.containsKey(conversationId)) {
-        _messages[conversationId] = [];
-      }
-
-      // Check if message already exists to prevent duplicates
-      final existingMessageIndex = _messages[conversationId]!.indexWhere(
-        (m) => m.id == message.id,
-      );
-
-      if (existingMessageIndex == -1) {
-        // Message doesn't exist, add it
-        _messages[conversationId]!.add(message);
-        _messages[conversationId]!.sort(
-          (a, b) => a.createdAt.compareTo(b.createdAt),
-        );
-      }
-
-      // Also send via WebSocket for real-time
+      // Send message via WebSocket only
       _webSocketService.sendMessage(
         conversationId: conversationId,
         content: caption ?? fileName,

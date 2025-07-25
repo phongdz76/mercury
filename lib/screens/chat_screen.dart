@@ -26,17 +26,20 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isUploading = false;
   int _previousMessageCount = 0;
   bool _showScrollToBottomButton = false;
+  ChatProvider? _chatProvider;
 
   @override
   void initState() {
     super.initState();
 
+    // Store reference to ChatProvider
+    _chatProvider = context.read<ChatProvider>();
+
     // Add scroll listener to detect when user scrolls up
     _scrollController.addListener(_onScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final chatProvider = context.read<ChatProvider>();
-      chatProvider.loadMessages(widget.conversation.id).then((_) {
+      _chatProvider!.loadMessages(widget.conversation.id).then((_) {
         // Scroll to bottom after messages are loaded
         _scrollToBottom();
       });
@@ -58,8 +61,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    // Leave conversation and clear messages when leaving chat screen
-    context.read<ChatProvider>().leaveConversation(widget.conversation.id);
+    // Leave conversation and clear messages when leaving chat screen (safely)
+    _chatProvider?.leaveConversation(widget.conversation.id);
     _messageController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
