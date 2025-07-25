@@ -11,7 +11,7 @@ class MessageService extends BaseService {
   }) async {
     final response = await http.get(
       Uri.parse(
-        '${BaseService.baseUrl}/conversations/$conversationId/messages?page=$page&limit=$limit',
+        '${BaseService.baseUrl}/conversations/$conversationId/messages?page=$page&limit=$limit&sort=createdAt&order=asc',
       ),
       headers: await BaseService.getHeaders(),
     );

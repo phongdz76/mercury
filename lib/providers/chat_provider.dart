@@ -87,20 +87,40 @@ class ChatProvider extends ChangeNotifier {
       final conversationId = event.conversationId;
 
       if (conversationId != null) {
+        // Skip messages from current user to avoid duplicates
+        // (current user's messages are handled via optimistic updates)
+        if (message.sender == _currentUser?.id) {
+          return;
+        }
+
         // Add message to messages list
         if (!_messages.containsKey(conversationId)) {
           _messages[conversationId] = [];
         }
-        _messages[conversationId]!.add(message);
-        _messages[conversationId]!.sort(
-          (a, b) => a.createdAt.compareTo(b.createdAt),
+
+        // Check if message already exists to prevent duplicates
+        final existingMessageIndex = _messages[conversationId]!.indexWhere(
+          (m) => m.id == message.id,
         );
 
+        if (existingMessageIndex == -1) {
+          // Message doesn't exist, add it
+          _messages[conversationId]!.add(message);
+          _messages[conversationId]!.sort(
+            (a, b) => a.createdAt.compareTo(b.createdAt),
+          );
+        } else {
+          // Message exists, update it (in case of edits)
+          _messages[conversationId]![existingMessageIndex] = message;
+        }
+
         // Update the conversation's last message and last activity
-        final conversationIndex = _conversations.indexWhere((c) => c.id == conversationId);
+        final conversationIndex = _conversations.indexWhere(
+          (c) => c.id == conversationId,
+        );
         if (conversationIndex != -1) {
           final conversation = _conversations[conversationIndex];
-          
+
           // Format last message based on message type
           String lastMessage = message.content;
           if (message.type == 'image') {
@@ -114,7 +134,7 @@ class ChatProvider extends ChangeNotifier {
           } else if (message.type == 'location') {
             lastMessage = '📍 Location';
           }
-          
+
           final updatedConversation = Conversation(
             id: conversation.id,
             type: conversation.type,
@@ -128,13 +148,13 @@ class ChatProvider extends ChangeNotifier {
             createdAt: conversation.createdAt,
             updatedAt: DateTime.now(),
           );
-          
+
           _conversations[conversationIndex] = updatedConversation;
-          
+
           // Sort conversations by last activity
           _sortConversations();
         }
-        
+
         notifyListeners();
       }
     } catch (e) {
@@ -156,7 +176,7 @@ class ChatProvider extends ChangeNotifier {
     try {
       final conversationId = event.conversationId;
       final messageId = event.data['messageId'] as String?;
-      
+
       if (conversationId != null && messageId != null) {
         // Update read status for the specific message
         final messages = _messages[conversationId];
@@ -182,7 +202,7 @@ class ChatProvider extends ChangeNotifier {
   void _handleConversationCreated(WebSocketEvent event) {
     try {
       final conversation = Conversation.fromJson(event.data['conversation']);
-      
+
       // Add to conversations list if not already present
       if (!_conversations.any((c) => c.id == conversation.id)) {
         _conversations.add(conversation);
@@ -196,10 +216,14 @@ class ChatProvider extends ChangeNotifier {
 
   void _handleConversationUpdated(WebSocketEvent event) {
     try {
-      final updatedConversation = Conversation.fromJson(event.data['conversation']);
-      
+      final updatedConversation = Conversation.fromJson(
+        event.data['conversation'],
+      );
+
       // Find and update the conversation in the list
-      final index = _conversations.indexWhere((c) => c.id == updatedConversation.id);
+      final index = _conversations.indexWhere(
+        (c) => c.id == updatedConversation.id,
+      );
       if (index != -1) {
         _conversations[index] = updatedConversation;
         notifyListeners();
@@ -212,17 +236,17 @@ class ChatProvider extends ChangeNotifier {
   void _handleConversationDeleted(WebSocketEvent event) {
     try {
       final conversationId = event.data['conversationId'] as String?;
-      
+
       if (conversationId != null) {
         // Remove from conversations list
         _conversations.removeWhere((c) => c.id == conversationId);
-        
+
         // Remove messages for this conversation
         _messages.remove(conversationId);
-        
+
         // Remove typing indicator
         _typingUsers.remove(conversationId);
-        
+
         notifyListeners();
       }
     } catch (e) {
@@ -234,17 +258,19 @@ class ChatProvider extends ChangeNotifier {
     try {
       final conversationId = event.conversationId;
       final participantId = event.data['participantId'] as String?;
-      
+
       if (conversationId != null && participantId != null) {
         // Find the conversation and update participants
         final index = _conversations.indexWhere((c) => c.id == conversationId);
         if (index != -1) {
           final conversation = _conversations[index];
-          final updatedParticipants = List<String>.from(conversation.participants);
-          
+          final updatedParticipants = List<String>.from(
+            conversation.participants,
+          );
+
           if (!updatedParticipants.contains(participantId)) {
             updatedParticipants.add(participantId);
-            
+
             // Create updated conversation
             final updatedConversation = Conversation(
               id: conversation.id,
@@ -259,7 +285,7 @@ class ChatProvider extends ChangeNotifier {
               createdAt: conversation.createdAt,
               updatedAt: DateTime.now(),
             );
-            
+
             _conversations[index] = updatedConversation;
             notifyListeners();
           }
@@ -274,17 +300,19 @@ class ChatProvider extends ChangeNotifier {
     try {
       final conversationId = event.conversationId;
       final participantId = event.data['participantId'] as String?;
-      
+
       if (conversationId != null && participantId != null) {
         // Find the conversation and update participants
         final index = _conversations.indexWhere((c) => c.id == conversationId);
         if (index != -1) {
           final conversation = _conversations[index];
-          final updatedParticipants = List<String>.from(conversation.participants);
-          
+          final updatedParticipants = List<String>.from(
+            conversation.participants,
+          );
+
           if (updatedParticipants.contains(participantId)) {
             updatedParticipants.remove(participantId);
-            
+
             // Create updated conversation
             final updatedConversation = Conversation(
               id: conversation.id,
@@ -299,7 +327,7 @@ class ChatProvider extends ChangeNotifier {
               createdAt: conversation.createdAt,
               updatedAt: DateTime.now(),
             );
-            
+
             _conversations[index] = updatedConversation;
             notifyListeners();
           }
@@ -314,7 +342,7 @@ class ChatProvider extends ChangeNotifier {
     try {
       final conversationId = event.conversationId;
       final isActive = event.data['isActive'] as bool? ?? true;
-      
+
       if (conversationId != null) {
         final index = _conversations.indexWhere((c) => c.id == conversationId);
         if (index != -1) {
@@ -332,7 +360,7 @@ class ChatProvider extends ChangeNotifier {
             createdAt: conversation.createdAt,
             updatedAt: DateTime.now(),
           );
-          
+
           _conversations[index] = updatedConversation;
           notifyListeners();
         }
@@ -435,14 +463,71 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> loadMessages(String conversationId) async {
     try {
+      // Prevent loading if already in progress
+      if (_isLoading) {
+        return;
+      }
+
+      _setLoading(true);
       final messages = await ApiService.getMessages(conversationId);
+
+      // Sort messages by creation time to ensure proper order
+      messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
       _messages[conversationId] = messages;
+
       _webSocketService.joinConversation(conversationId);
       notifyListeners();
     } catch (e) {
       _error = 'Failed to load messages: $e';
       notifyListeners();
+    } finally {
+      _setLoading(false);
     }
+  }
+
+  // Method to force reload messages (useful for refreshing chat)
+  Future<void> reloadMessages(String conversationId) async {
+    try {
+      _setLoading(true);
+      final messages = await ApiService.getMessages(conversationId);
+
+      // Sort messages by creation time to ensure proper order
+      messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      _messages[conversationId] = messages;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to reload messages: $e';
+      notifyListeners();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Method to clear messages for a conversation (call when leaving chat)
+  void clearConversationMessages(String conversationId) {
+    _messages.remove(conversationId);
+    _typingUsers.remove(conversationId);
+    notifyListeners();
+  }
+
+  // Method to leave a conversation room
+  void leaveConversation(String conversationId) {
+    _webSocketService.leaveConversation(conversationId);
+    clearConversationMessages(conversationId);
+  }
+
+  // Method to reset all chat state (useful when logging out or reinitializing)
+  void resetChatState() {
+    _conversations.clear();
+    _messages.clear();
+    _typingUsers.clear();
+    _userCache.clear();
+    _currentUser = null;
+    _isLoading = false;
+    _error = null;
+    notifyListeners();
   }
 
   Future<void> sendMessage({
@@ -452,22 +537,63 @@ class ChatProvider extends ChangeNotifier {
     String? replyTo,
   }) async {
     try {
-      // Send via WebSocket for real-time
-      _webSocketService.sendMessage(
+      // Create optimistic message for immediate UI update
+      final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      final optimisticMessage = Message(
+        id: tempId,
+        conversationId: conversationId,
+        sender: _currentUser?.id ?? '',
+        content: content,
+        type: type,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        replyTo: replyTo,
+        readBy: [],
+        attachments: [],
+        isEdited: false,
+        isDeleted: false,
+        editedAt: null,
+        deletedAt: null,
+      );
+
+      // Add optimistic message to local messages immediately
+      if (!_messages.containsKey(conversationId)) {
+        _messages[conversationId] = [];
+      }
+      _messages[conversationId]!.add(optimisticMessage);
+      _messages[conversationId]!.sort(
+        (a, b) => a.createdAt.compareTo(b.createdAt),
+      );
+      notifyListeners();
+
+      // Send via REST API (primary method)
+      final sentMessage = await ApiService.sendMessage(
         conversationId: conversationId,
         content: content,
         type: type,
         replyTo: replyTo,
       );
 
-      // Also send via REST API as backup
-      await ApiService.sendMessage(
-        conversationId: conversationId,
-        content: content,
-        type: type,
-        replyTo: replyTo,
+      // Replace optimistic message with real message
+      final messageIndex = _messages[conversationId]!.indexWhere(
+        (m) => m.id == tempId,
       );
+      
+      if (messageIndex != -1) {
+        _messages[conversationId]![messageIndex] = sentMessage;
+      } else {
+        // Fallback: add message if optimistic message not found
+        _messages[conversationId]!.add(sentMessage);
+        _messages[conversationId]!.sort(
+          (a, b) => a.createdAt.compareTo(b.createdAt),
+        );
+      }
+
+      notifyListeners();
     } catch (e) {
+      // Remove optimistic message on error  
+      _messages[conversationId]?.removeWhere((m) => m.id.startsWith('temp_'));
+      
       _error = 'Failed to send message: $e';
       notifyListeners();
     }
@@ -544,10 +670,19 @@ class ChatProvider extends ChangeNotifier {
       if (!_messages.containsKey(conversationId)) {
         _messages[conversationId] = [];
       }
-      _messages[conversationId]!.add(message);
-      _messages[conversationId]!.sort(
-        (a, b) => a.createdAt.compareTo(b.createdAt),
+
+      // Check if message already exists to prevent duplicates
+      final existingMessageIndex = _messages[conversationId]!.indexWhere(
+        (m) => m.id == message.id,
       );
+
+      if (existingMessageIndex == -1) {
+        // Message doesn't exist, add it
+        _messages[conversationId]!.add(message);
+        _messages[conversationId]!.sort(
+          (a, b) => a.createdAt.compareTo(b.createdAt),
+        );
+      }
 
       // Also send via WebSocket for real-time
       _webSocketService.sendMessage(
@@ -605,6 +740,256 @@ class ChatProvider extends ChangeNotifier {
     } catch (e) {
       print('Error fetching user $userId: $e');
       return null;
+    }
+  }
+
+  Future<Conversation> createOrGetConversation({
+    required String type,
+    required List<String> participants,
+    String? title,
+  }) async {
+    try {
+      // Check if a conversation already exists with these participants
+      final existingConversation = _findExistingConversation(
+        participants,
+        type,
+      );
+
+      if (existingConversation != null) {
+        return existingConversation;
+      }
+
+      // Create new conversation
+      final conversation = await ApiService.createConversation(
+        type: type,
+        participants: participants,
+        title: title,
+      );
+
+      // Add to local list
+      _conversations.add(conversation);
+      _sortConversations();
+      notifyListeners();
+
+      return conversation;
+    } catch (e) {
+      throw Exception('Failed to create or get conversation: $e');
+    }
+  }
+
+  Conversation? _findExistingConversation(
+    List<String> participants,
+    String type,
+  ) {
+    for (final conversation in _conversations) {
+      if (conversation.type == type) {
+        // For direct conversations, check if participants match (including current user)
+        if (type == 'direct' && conversation.participants.length == 2) {
+          final allParticipants = [
+            ...participants,
+            _currentUser?.id,
+          ].where((id) => id != null).toList();
+          final conversationParticipants = conversation.participants.toSet();
+          final targetParticipants = allParticipants.toSet();
+
+          if (conversationParticipants.length == targetParticipants.length &&
+              conversationParticipants.containsAll(targetParticipants)) {
+            return conversation;
+          }
+        }
+        // For group conversations, check if exact same participants
+        else if (type == 'group') {
+          final allParticipants = [
+            ...participants,
+            _currentUser?.id,
+          ].where((id) => id != null).toList();
+          final conversationParticipants = conversation.participants.toSet();
+          final targetParticipants = allParticipants.toSet();
+
+          if (conversationParticipants.length == targetParticipants.length &&
+              conversationParticipants.containsAll(targetParticipants)) {
+            return conversation;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // Message read status methods
+  bool shouldShowReadIndicator(String messageId, String conversationId) {
+    final messages = _messages[conversationId] ?? [];
+    final message = messages.where((m) => m.id == messageId).firstOrNull;
+
+    if (message == null) return false;
+
+    // Only show read indicator for messages sent by current user
+    return message.sender == _currentUser?.id;
+  }
+
+  List<ReadReceipt> getMessageReadReceipts(
+    String messageId,
+    String conversationId,
+  ) {
+    final messages = _messages[conversationId] ?? [];
+    final message = messages.where((m) => m.id == messageId).firstOrNull;
+
+    if (message == null) return [];
+
+    return message.readBy ?? [];
+  }
+
+  String getReadStatusText(String messageId, String conversationId) {
+    final readReceipts = getMessageReadReceipts(messageId, conversationId);
+
+    if (readReceipts.isEmpty) {
+      return 'Sent';
+    } else if (readReceipts.length == 1) {
+      return 'Read';
+    } else {
+      return 'Read by ${readReceipts.length}';
+    }
+  }
+
+  bool isMessageReadByCurrentUser(String messageId, String conversationId) {
+    final messages = _messages[conversationId] ?? [];
+    final message = messages.where((m) => m.id == messageId).firstOrNull;
+
+    if (message == null) return true;
+
+    // If current user sent the message, consider it as "read"
+    if (message.sender == _currentUser?.id) return true;
+
+    // Check if current user has read receipt for this message
+    final readReceipts = message.readBy ?? [];
+    return readReceipts.any((receipt) => receipt.userId == _currentUser?.id);
+  }
+
+  Map<String, dynamic> getConversationReadStatus(String conversationId) {
+    final messages = _messages[conversationId] ?? [];
+    final currentUserId = _currentUser?.id;
+
+    if (currentUserId == null) {
+      return {'unreadCount': 0, 'lastReadMessageId': null};
+    }
+
+    int unreadCount = 0;
+    String? lastReadMessageId;
+
+    for (final message in messages.reversed) {
+      if (message.sender == currentUserId) {
+        // Skip own messages
+        continue;
+      }
+
+      final isRead = isMessageReadByCurrentUser(message.id, conversationId);
+      if (isRead) {
+        if (lastReadMessageId == null) {
+          lastReadMessageId = message.id;
+        }
+      } else {
+        unreadCount++;
+      }
+    }
+
+    return {'unreadCount': unreadCount, 'lastReadMessageId': lastReadMessageId};
+  }
+
+  int getUnreadMessagesCount(String conversationId) {
+    final status = getConversationReadStatus(conversationId);
+    return status['unreadCount'] as int;
+  }
+
+  Future<void> markAllMessagesAsRead(String conversationId) async {
+    final messages = _messages[conversationId] ?? [];
+    final currentUserId = _currentUser?.id;
+
+    if (currentUserId == null) return;
+
+    try {
+      // Find all unread messages not sent by current user
+      final unreadMessages = messages
+          .where(
+            (message) =>
+                message.sender != currentUserId &&
+                !isMessageReadByCurrentUser(message.id, conversationId),
+          )
+          .toList();
+
+      for (final message in unreadMessages) {
+        // Mark as read via WebSocket
+        markAsRead(conversationId, message.id);
+
+        // Update local state
+        _markMessageAsReadLocally(message.id, conversationId, currentUserId);
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('Error marking all messages as read: $e');
+    }
+  }
+
+  Future<void> markMessagesAsReadWhenVisible(
+    String conversationId,
+    List<String> visibleMessageIds,
+  ) async {
+    final currentUserId = _currentUser?.id;
+    if (currentUserId == null) return;
+
+    try {
+      for (final messageId in visibleMessageIds) {
+        if (!isMessageReadByCurrentUser(messageId, conversationId)) {
+          // Mark as read via WebSocket
+          markAsRead(conversationId, messageId);
+
+          // Update local state
+          _markMessageAsReadLocally(messageId, conversationId, currentUserId);
+        }
+      }
+
+      notifyListeners();
+    } catch (e) {
+      print('Error marking visible messages as read: $e');
+    }
+  }
+
+  void _markMessageAsReadLocally(
+    String messageId,
+    String conversationId,
+    String userId,
+  ) {
+    final messages = _messages[conversationId] ?? [];
+    final messageIndex = messages.indexWhere((m) => m.id == messageId);
+
+    if (messageIndex != -1) {
+      final message = messages[messageIndex];
+      final readReceipts = message.readBy ?? <ReadReceipt>[];
+
+      // Check if user hasn't already read this message
+      if (!readReceipts.any((receipt) => receipt.userId == userId)) {
+        readReceipts.add(ReadReceipt(userId: userId, readAt: DateTime.now()));
+
+        // Create updated message with new read receipt
+        final updatedMessage = Message(
+          id: message.id,
+          conversationId: message.conversationId,
+          sender: message.sender,
+          content: message.content,
+          type: message.type,
+          createdAt: message.createdAt,
+          updatedAt: message.updatedAt,
+          replyTo: message.replyTo,
+          readBy: readReceipts,
+          attachments: message.attachments,
+          isEdited: message.isEdited,
+          isDeleted: message.isDeleted,
+          editedAt: message.editedAt,
+          deletedAt: message.deletedAt,
+        );
+
+        messages[messageIndex] = updatedMessage;
+      }
     }
   }
 

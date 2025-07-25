@@ -1,6 +1,6 @@
 class ApiConstants {
-  static const String baseUrl = 'http://localhost:3000';
-  static const String wsUrl = 'ws://localhost:3000/chat/ws';
+  static const String baseUrl = 'http://192.168.1.5:3000';
+  static const String wsUrl = 'ws://192.168.1.5:3000/chat/ws';
 
   // API Endpoints
   static const String authLogin = '/auth/login';

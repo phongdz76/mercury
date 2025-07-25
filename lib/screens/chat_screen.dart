@@ -24,18 +24,44 @@ class _ChatScreenState extends State<ChatScreen> {
   final _picker = ImagePicker();
   bool _isTyping = false;
   bool _isUploading = false;
+  int _previousMessageCount = 0;
+  bool _showScrollToBottomButton = false;
 
   @override
   void initState() {
     super.initState();
+
+    // Add scroll listener to detect when user scrolls up
+    _scrollController.addListener(_onScroll);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().loadMessages(widget.conversation.id);
+      final chatProvider = context.read<ChatProvider>();
+      chatProvider.loadMessages(widget.conversation.id).then((_) {
+        // Scroll to bottom after messages are loaded
+        _scrollToBottom();
+      });
     });
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      final threshold = _scrollController.position.maxScrollExtent - 100;
+      final showButton = _scrollController.offset < threshold;
+
+      if (showButton != _showScrollToBottomButton) {
+        setState(() {
+          _showScrollToBottomButton = showButton;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
+    // Leave conversation and clear messages when leaving chat screen
+    context.read<ChatProvider>().leaveConversation(widget.conversation.id);
     _messageController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
@@ -52,9 +78,15 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<void> _refreshMessages() async {
+    final chatProvider = context.read<ChatProvider>();
+    await chatProvider.reloadMessages(widget.conversation.id);
+    _scrollToBottom();
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
+      if (_scrollController.hasClients && mounted) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
@@ -269,118 +301,159 @@ class _ChatScreenState extends State<ChatScreen> {
           const SizedBox(width: 16),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Expanded(
-            child: Consumer<ChatProvider>(
-              builder: (context, chatProvider, child) {
-                final messages =
-                    chatProvider.messages[widget.conversation.id] ?? [];
+          Column(
+            children: [
+              Expanded(
+                child: Consumer<ChatProvider>(
+                  builder: (context, chatProvider, child) {
+                    final messages =
+                        chatProvider.messages[widget.conversation.id] ?? [];
 
-                if (messages.isEmpty) {
-                  return const Center(child: Text(AppStrings.noMessages));
-                }
+                    // Auto-scroll when new messages arrive (only if user is near bottom)
+                    if (messages.length > _previousMessageCount) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (_scrollController.hasClients) {
+                          final threshold =
+                              _scrollController.position.maxScrollExtent - 200;
+                          final isNearBottom =
+                              _scrollController.offset >= threshold;
 
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(8),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[index];
-                    return _buildMessageItem(message, chatProvider);
-                  },
-                );
-              },
-            ),
-          ),
+                          if (isNearBottom || _previousMessageCount == 0) {
+                            _scrollToBottom();
+                          }
+                        }
+                      });
+                    }
+                    _previousMessageCount = messages.length;
 
-          // Typing indicator
-          Consumer<ChatProvider>(
-            builder: (context, chatProvider, child) {
-              final isTyping =
-                  chatProvider.typingUsers[widget.conversation.id] ?? false;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                height: isTyping ? 40 : 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: isTyping
-                    ? const Row(
-                        children: [
-                          Icon(Icons.more_horiz, color: Colors.grey),
-                          SizedBox(width: 8),
-                          Text(
-                            AppStrings.someonTyping,
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      )
-                    : null,
-              );
-            },
-          ),
+                    if (messages.isEmpty) {
+                      return const Center(child: Text(AppStrings.noMessages));
+                    }
 
-          // Message input
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border(top: BorderSide(color: Colors.grey[300]!)),
-            ),
-            child: Column(
-              children: [
-                // Upload progress indicator
-                if (_isUploading)
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    child: Row(
-                      children: [
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text('Uploading...'),
-                      ],
-                    ),
-                  ),
-
-                // Message input row
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: _isUploading ? null : _showAttachmentOptions,
-                      icon: const Icon(Icons.attach_file),
-                      color: Colors.blue,
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        decoration: const InputDecoration(
-                          hintText: AppStrings.typeMessage,
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        onChanged: _onTyping,
-                        onSubmitted: (_) => _sendMessage(),
-                        maxLines: null,
-                        enabled: !_isUploading,
+                    return RefreshIndicator(
+                      onRefresh: _refreshMessages,
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(8),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          return _buildMessageItem(message, chatProvider);
+                        },
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: _isUploading ? null : _sendMessage,
-                      icon: const Icon(Icons.send),
-                      color: Colors.blue,
+                    );
+                  },
+                ),
+              ),
+
+              // Typing indicator
+              Consumer<ChatProvider>(
+                builder: (context, chatProvider, child) {
+                  final isTyping =
+                      chatProvider.typingUsers[widget.conversation.id] ?? false;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: isTyping ? 40 : 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: isTyping
+                        ? const Row(
+                            children: [
+                              Icon(Icons.more_horiz, color: Colors.grey),
+                              SizedBox(width: 8),
+                              Text(
+                                AppStrings.someonTyping,
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          )
+                        : null,
+                  );
+                },
+              ),
+
+              // Message input
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  border: Border(top: BorderSide(color: Colors.grey[300]!)),
+                ),
+                child: Column(
+                  children: [
+                    // Upload progress indicator
+                    if (_isUploading)
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text('Uploading...'),
+                          ],
+                        ),
+                      ),
+
+                    // Message input row
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: _isUploading
+                              ? null
+                              : _showAttachmentOptions,
+                          icon: const Icon(Icons.attach_file),
+                          color: Colors.blue,
+                        ),
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            decoration: const InputDecoration(
+                              hintText: AppStrings.typeMessage,
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            onChanged: _onTyping,
+                            onSubmitted: (_) => _sendMessage(),
+                            maxLines: null,
+                            enabled: !_isUploading,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _isUploading ? null : _sendMessage,
+                          icon: const Icon(Icons.send),
+                          color: Colors.blue,
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+
+          // Scroll to bottom button
+          if (_showScrollToBottomButton)
+            Positioned(
+              right: 16,
+              bottom: 100,
+              child: FloatingActionButton.small(
+                onPressed: _scrollToBottom,
+                backgroundColor: Colors.blue,
+                child: const Icon(
+                  Icons.keyboard_arrow_down,
+                  color: Colors.white,
+                ),
+              ),
+            ),
         ],
       ),
     );
