@@ -8,6 +8,7 @@ import '../models/conversation.dart';
 import '../models/message.dart';
 import '../constants/app_constants.dart';
 import '../utils/utils.dart';
+import '../widgets/user_avatar.dart';
 
 class ChatScreen extends StatefulWidget {
   final Conversation conversation;
@@ -284,11 +285,85 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          widget.conversation.title ??
-              (widget.conversation.type == ApiConstants.conversationTypeDirect
-                  ? AppStrings.directChat
-                  : AppStrings.groupChat),
+        title: Consumer<ChatProvider>(
+          builder: (context, chatProvider, child) {
+            // For direct chat, show the other participant's name and avatar
+            if (widget.conversation.type ==
+                ApiConstants.conversationTypeDirect) {
+              final otherParticipantId = chatProvider.getOtherParticipant(
+                widget.conversation,
+              );
+              final otherParticipantName = chatProvider.getUserDisplayName(
+                otherParticipantId,
+              );
+              final otherParticipantAvatar = chatProvider.getUserAvatar(
+                otherParticipantId,
+              );
+              final otherUser = chatProvider.userCache[otherParticipantId];
+
+              return Row(
+                children: [
+                  UserAvatar(
+                    avatarUrl: otherParticipantAvatar,
+                    displayName: otherParticipantName,
+                    size: 36,
+                    showOnlineIndicator: true,
+                    isOnline: otherUser?.isOnline ?? false,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          otherParticipantName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (otherUser != null)
+                          Text(
+                            otherUser.isOnline
+                                ? 'Online'
+                                : otherUser.lastSeen != null
+                                ? 'Last seen ${Utils.formatRelativeTime(otherUser.lastSeen!)}'
+                                : 'Offline',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white70,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            } else {
+              // For group chat, show the conversation title and member count
+              final memberCount = widget.conversation.participants.length;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.conversation.title ?? AppStrings.groupChat,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    '$memberCount members',
+                    style: const TextStyle(fontSize: 12, color: Colors.white70),
+                  ),
+                ],
+              );
+            }
+          },
         ),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
@@ -464,66 +539,148 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildMessageItem(Message message, ChatProvider chatProvider) {
     final isCurrentUser = message.sender == chatProvider.currentUser?.id;
+    final isGroupChat = widget.conversation.type == 'group';
+    final senderDisplayName = chatProvider.getUserDisplayName(message.sender);
+    final senderAvatar = chatProvider.getUserAvatar(message.sender);
 
-    return Align(
-      alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.all(12),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.7,
-        ),
-        decoration: BoxDecoration(
-          color: isCurrentUser ? Colors.blue : Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
+    // For group chat, show avatar for other users' messages
+    if (isGroupChat && !isCurrentUser) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!isCurrentUser)
-              Text(
-                message.sender,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+            // Avatar
+            UserAvatar(
+              avatarUrl: senderAvatar,
+              displayName: senderDisplayName,
+              size: 32,
+            ),
+            const SizedBox(width: 8),
+            // Message bubble
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Sender name
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, bottom: 2),
+                    child: Text(
+                      senderDisplayName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: UserAvatar.getColorForName(senderDisplayName),
+                      ),
+                    ),
+                  ),
+                  // Message content
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildMessageContent(message, isCurrentUser),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              Utils.formatTime(message.createdAt),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            if (message.isEdited) ...[
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.edit,
+                                size: 12,
+                                color: Colors.grey,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-
-            // Message content based on type
-            _buildMessageContent(message, isCurrentUser),
-
-            const SizedBox(height: 4),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  Utils.formatTime(message.createdAt),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isCurrentUser ? Colors.white70 : Colors.grey,
-                  ),
-                ),
-
-                if (message.isEdited) ...[
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.edit,
-                    size: 12,
-                    color: isCurrentUser ? Colors.white70 : Colors.grey,
-                  ),
-                ],
-
-                if (isCurrentUser) ...[
-                  const SizedBox(width: 4),
-                  Icon(Icons.check, size: 12, color: Colors.white70),
-                ],
-              ],
             ),
           ],
         ),
-      ),
-    );
+      );
+    } else {
+      // For direct chat or current user's messages in group chat
+      return Align(
+        alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.all(12),
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          ),
+          decoration: BoxDecoration(
+            color: isCurrentUser ? Colors.blue : Colors.grey[200],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Show sender name for direct chat when not current user
+              if (!isCurrentUser && !isGroupChat)
+                Text(
+                  senderDisplayName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+
+              // Message content based on type
+              _buildMessageContent(message, isCurrentUser),
+
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    Utils.formatTime(message.createdAt),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isCurrentUser ? Colors.white70 : Colors.grey,
+                    ),
+                  ),
+
+                  if (message.isEdited) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.edit,
+                      size: 12,
+                      color: isCurrentUser ? Colors.white70 : Colors.grey,
+                    ),
+                  ],
+
+                  if (isCurrentUser) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.check, size: 12, color: Colors.white70),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildMessageContent(Message message, bool isCurrentUser) {
@@ -553,7 +710,10 @@ class _ChatScreenState extends State<ChatScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.network(
-              ApiConstants.baseUrl + message.attachments!.first.url,
+              ApiConstants.baseUrl +
+                  ApiConstants.attachments +
+                  '/' +
+                  message.attachments!.first.url,
               width: double.infinity,
               fit: BoxFit.cover,
               loadingBuilder: (context, child, loadingProgress) {

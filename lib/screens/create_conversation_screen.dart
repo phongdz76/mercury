@@ -15,8 +15,10 @@ class CreateConversationScreen extends StatefulWidget {
 
 class _CreateConversationScreenState extends State<CreateConversationScreen> {
   final _titleController = TextEditingController();
+  final _searchController = TextEditingController();
   final List<String> _selectedFriends = [];
   bool _isCreating = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -29,6 +31,7 @@ class _CreateConversationScreenState extends State<CreateConversationScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -75,31 +78,76 @@ class _CreateConversationScreenState extends State<CreateConversationScreen> {
           // Selected friends summary
           if (_selectedFriends.isNotEmpty)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.withOpacity(0.3)),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _selectedFriends.length == 1
-                        ? 'Selected Friend (1)'
-                        : 'Selected Friends (${_selectedFriends.length})',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                  Row(
+                    children: [
+                      Icon(
+                        _selectedFriends.length == 1
+                            ? Icons.person
+                            : Icons.group,
+                        color: Colors.blue,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _selectedFriends.length == 1
+                            ? 'Selected Friend (1)'
+                            : 'Selected Friends (${_selectedFriends.length})',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _selectedFriends.length == 1
                         ? 'This will create a direct conversation'
                         : 'This will create a group conversation',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    style: TextStyle(color: Colors.grey[700], fontSize: 14),
                   ),
+                  if (_selectedFriends.length > 1) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      '💡 You can add a group title above',
+                      style: TextStyle(color: Colors.orange, fontSize: 12),
+                    ),
+                  ],
                 ],
               ),
             ),
 
           const Divider(),
+
+          // Search bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                labelText: 'Search friends',
+                hintText: 'Type friend name or username',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+            ),
+          ),
 
           // Friends list
           Expanded(
@@ -154,6 +202,26 @@ class _CreateConversationScreenState extends State<CreateConversationScreen> {
                   itemCount: friendProvider.friends.length,
                   itemBuilder: (context, index) {
                     final friend = friendProvider.friends[index];
+
+                    // Filter friends based on search query
+                    if (_searchQuery.isNotEmpty) {
+                      final nameMatch = friend.username.toLowerCase().contains(
+                        _searchQuery,
+                      );
+                      final fullNameMatch =
+                          friend.fullName?.toLowerCase().contains(
+                            _searchQuery,
+                          ) ??
+                          false;
+                      final emailMatch = friend.email.toLowerCase().contains(
+                        _searchQuery,
+                      );
+
+                      if (!nameMatch && !fullNameMatch && !emailMatch) {
+                        return const SizedBox.shrink();
+                      }
+                    }
+
                     return _buildFriendTile(friend);
                   },
                 );
@@ -168,72 +236,83 @@ class _CreateConversationScreenState extends State<CreateConversationScreen> {
   Widget _buildFriendTile(FriendUser friend) {
     final isSelected = _selectedFriends.contains(friend.id);
 
-    return ListTile(
-      leading: Stack(
-        children: [
-          CircleAvatar(
-            backgroundImage: friend.avatar != null
-                ? NetworkImage(friend.avatar!)
-                : null,
-            child: friend.avatar == null
-                ? Text(friend.username[0].toUpperCase())
-                : null,
-          ),
-          // Online indicator
-          if (friend.isOnline)
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      elevation: isSelected ? 4 : 1,
+      color: isSelected ? Colors.blue.withOpacity(0.1) : null,
+      child: ListTile(
+        leading: Stack(
+          children: [
+            CircleAvatar(
+              backgroundImage: friend.avatar != null
+                  ? NetworkImage(friend.avatar!)
+                  : null,
+              child: friend.avatar == null
+                  ? Text(friend.username[0].toUpperCase())
+                  : null,
+            ),
+            // Online indicator
+            if (friend.isOnline)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
-      title: Text(friend.username),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(friend.fullName ?? friend.email),
-          if (friend.isOnline)
-            const Text(
-              'Online',
-              style: TextStyle(color: Colors.green, fontSize: 12),
-            )
-          else if (friend.lastSeen != null)
-            Text(
-              'Last seen ${_formatLastSeen(friend.lastSeen!)}',
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-        ],
-      ),
-      trailing: Checkbox(
-        value: isSelected,
-        onChanged: (bool? value) {
+          ],
+        ),
+        title: Text(
+          friend.username,
+          style: TextStyle(
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(friend.fullName ?? friend.email),
+            if (friend.isOnline)
+              const Text(
+                'Online',
+                style: TextStyle(color: Colors.green, fontSize: 12),
+              )
+            else if (friend.lastSeen != null)
+              Text(
+                'Last seen ${_formatLastSeen(friend.lastSeen!)}',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+          ],
+        ),
+        trailing: Checkbox(
+          value: isSelected,
+          activeColor: Colors.blue,
+          onChanged: (bool? value) {
+            setState(() {
+              if (value == true) {
+                _selectedFriends.add(friend.id);
+              } else {
+                _selectedFriends.remove(friend.id);
+              }
+            });
+          },
+        ),
+        onTap: () {
           setState(() {
-            if (value == true) {
-              _selectedFriends.add(friend.id);
-            } else {
+            if (isSelected) {
               _selectedFriends.remove(friend.id);
+            } else {
+              _selectedFriends.add(friend.id);
             }
           });
         },
       ),
-      onTap: () {
-        setState(() {
-          if (isSelected) {
-            _selectedFriends.remove(friend.id);
-          } else {
-            _selectedFriends.add(friend.id);
-          }
-        });
-      },
     );
   }
 
@@ -269,17 +348,26 @@ class _CreateConversationScreenState extends State<CreateConversationScreen> {
           ? ApiConstants.conversationTypeDirect
           : ApiConstants.conversationTypeGroup;
 
-      // Use title only for group conversations
+      // For group conversations, only include title if it's not empty
       String? title;
       if (_selectedFriends.length > 1) {
         final titleText = _titleController.text.trim();
         title = titleText.isNotEmpty ? titleText : null;
       }
 
+      // Get current user ID from ChatProvider
+      final currentUserId = chatProvider.currentUser?.id;
+      if (currentUserId == null) {
+        throw Exception('User not logged in');
+      }
+
+      // Include current user in participants list
+      final allParticipants = [currentUserId, ..._selectedFriends];
+
       // Use createOrGetConversation for better handling
       await chatProvider.createOrGetConversation(
         type: type,
-        participants: _selectedFriends,
+        participants: allParticipants,
         title: title,
       );
 

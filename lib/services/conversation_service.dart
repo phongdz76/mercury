@@ -51,15 +51,26 @@ class ConversationService extends BaseService {
     String? title,
     String? description,
   }) async {
+    // Build request body, only include non-null fields
+    final Map<String, dynamic> requestBody = {
+      'type': type,
+      'participants': participants,
+    };
+
+    // Only add title if it's not null or empty
+    if (title != null && title.trim().isNotEmpty) {
+      requestBody['title'] = title.trim();
+    }
+
+    // Only add description if it's not null or empty
+    if (description != null && description.trim().isNotEmpty) {
+      requestBody['description'] = description.trim();
+    }
+
     final response = await http.post(
       Uri.parse('${BaseService.baseUrl}/conversations'),
       headers: await BaseService.getHeaders(),
-      body: jsonEncode({
-        'type': type,
-        'participants': participants,
-        'title': title,
-        'description': description,
-      }),
+      body: jsonEncode(requestBody),
     );
 
     if (response.statusCode == 201) {

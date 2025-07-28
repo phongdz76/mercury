@@ -78,6 +78,21 @@ class ChatProvider extends ChangeNotifier {
       case 'conversation_status_changed':
         _handleConversationStatusChanged(event);
         break;
+      case 'conversation_list_updated':
+        _handleConversationListUpdated(event);
+        break;
+      case 'conversation_read_status_changed':
+        _handleConversationReadStatusChanged(event);
+        break;
+      case 'conversation_muted':
+        _handleConversationMuted(event);
+        break;
+      case 'conversation_archived':
+        _handleConversationArchived(event);
+        break;
+      case 'unread_count_updated':
+        _handleUnreadCountUpdated(event);
+        break;
     }
   }
 
@@ -106,6 +121,11 @@ class ChatProvider extends ChangeNotifier {
         } else {
           // Message exists, update it (in case of edits)
           _messages[conversationId]![existingMessageIndex] = message;
+        }
+
+        // Preload sender information if not already cached
+        if (!_userCache.containsKey(message.sender)) {
+          getUser(message.sender);
         }
 
         // Update the conversation's last message and last activity
@@ -326,6 +346,117 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  // New handler methods for enhanced real-time features
+  void _handleConversationListUpdated(WebSocketEvent event) {
+    try {
+      final conversationData = event.data['conversation'];
+      if (conversationData != null) {
+        final conversation = Conversation.fromJson(conversationData);
+        updateConversationInList(conversation);
+      }
+    } catch (e) {
+      print('Error handling conversation list updated: $e');
+    }
+  }
+
+  void _handleConversationReadStatusChanged(WebSocketEvent event) {
+    try {
+      final conversationId = event.conversationId;
+      final unreadCount = event.data['unreadCount'] as int? ?? 0;
+
+      if (conversationId != null) {
+        final index = _conversations.indexWhere((c) => c.id == conversationId);
+        if (index != -1) {
+          final conversation = _conversations[index];
+          final updatedConversation = conversation.copyWith(
+            unreadCount: unreadCount,
+            updatedAt: DateTime.now(),
+          );
+
+          _conversations[index] = updatedConversation;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print('Error handling conversation read status changed: $e');
+    }
+  }
+
+  void _handleConversationMuted(WebSocketEvent event) {
+    try {
+      final conversationId = event.conversationId;
+      final isMuted = event.data['isMuted'] as bool? ?? false;
+
+      if (conversationId != null) {
+        final index = _conversations.indexWhere((c) => c.id == conversationId);
+        if (index != -1) {
+          final conversation = _conversations[index];
+          final updatedConversation = conversation.copyWith(
+            isMuted: isMuted,
+            updatedAt: DateTime.now(),
+          );
+
+          _conversations[index] = updatedConversation;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print('Error handling conversation muted: $e');
+    }
+  }
+
+  void _handleConversationArchived(WebSocketEvent event) {
+    try {
+      final conversationId = event.conversationId;
+      final isArchived = event.data['isArchived'] as bool? ?? false;
+
+      if (conversationId != null) {
+        final index = _conversations.indexWhere((c) => c.id == conversationId);
+        if (index != -1) {
+          final conversation = _conversations[index];
+          final updatedConversation = conversation.copyWith(
+            isArchived: isArchived,
+            updatedAt: DateTime.now(),
+          );
+
+          _conversations[index] = updatedConversation;
+
+          // If archived, remove from main list or move to archived section
+          if (isArchived) {
+            // You can implement archived conversations logic here
+          }
+
+          _sortConversations();
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print('Error handling conversation archived: $e');
+    }
+  }
+
+  void _handleUnreadCountUpdated(WebSocketEvent event) {
+    try {
+      final conversationId = event.conversationId;
+      final unreadCount = event.data['unreadCount'] as int? ?? 0;
+
+      if (conversationId != null) {
+        final index = _conversations.indexWhere((c) => c.id == conversationId);
+        if (index != -1) {
+          final conversation = _conversations[index];
+          final updatedConversation = conversation.copyWith(
+            unreadCount: unreadCount,
+          );
+
+          _conversations[index] = updatedConversation;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      print('Error handling unread count updated: $e');
+    }
+  }
+
   Future<void> initialize() async {
     await _loadCurrentUser();
     await _connectWebSocket();
@@ -345,6 +476,8 @@ class ChatProvider extends ChangeNotifier {
   Future<void> _connectWebSocket() async {
     try {
       await _webSocketService.connect();
+      // Auto-subscribe to conversation list updates after connection
+      _webSocketService.subscribeToConversationList();
       notifyListeners();
     } catch (e) {
       _error = 'Failed to connect to WebSocket: $e';
@@ -378,7 +511,14 @@ class ChatProvider extends ChangeNotifier {
   }
 
   void _sortConversations() {
-    _conversations.sort((a, b) => b.lastActivity.compareTo(a.lastActivity));
+    _conversations.sort((a, b) {
+      // First, prioritize conversations with unread messages
+      if (a.unreadCount > 0 && b.unreadCount == 0) return -1;
+      if (a.unreadCount == 0 && b.unreadCount > 0) return 1;
+
+      // Then sort by last activity
+      return b.lastActivity.compareTo(a.lastActivity);
+    });
   }
 
   void addConversationToList(Conversation conversation) {
@@ -417,6 +557,86 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  // Enhanced conversation management methods
+  void markConversationAsRead(String conversationId) {
+    final index = _conversations.indexWhere((c) => c.id == conversationId);
+    if (index != -1) {
+      final conversation = _conversations[index];
+      if (conversation.unreadCount > 0) {
+        final updatedConversation = conversation.copyWith(unreadCount: 0);
+        _conversations[index] = updatedConversation;
+        notifyListeners();
+
+        // Notify server via WebSocket
+        _webSocketService.markConversationAsRead(conversationId);
+      }
+    }
+  }
+
+  void muteConversation(String conversationId, bool mute) {
+    final index = _conversations.indexWhere((c) => c.id == conversationId);
+    if (index != -1) {
+      final conversation = _conversations[index];
+      final updatedConversation = conversation.copyWith(isMuted: mute);
+      _conversations[index] = updatedConversation;
+      notifyListeners();
+
+      // Notify server via WebSocket
+      _webSocketService.muteConversation(conversationId, mute);
+    }
+  }
+
+  void archiveConversation(String conversationId, bool archive) {
+    final index = _conversations.indexWhere((c) => c.id == conversationId);
+    if (index != -1) {
+      final conversation = _conversations[index];
+      final updatedConversation = conversation.copyWith(isArchived: archive);
+      _conversations[index] = updatedConversation;
+      _sortConversations();
+      notifyListeners();
+
+      // Notify server via WebSocket
+      _webSocketService.archiveConversation(conversationId, archive);
+    }
+  }
+
+  int getTotalUnreadCount() {
+    return _conversations
+        .where((c) => !c.isArchived && !c.isMuted)
+        .fold(0, (sum, conversation) => sum + conversation.unreadCount);
+  }
+
+  List<Conversation> getActiveConversations() {
+    return _conversations.where((c) => !c.isArchived && c.isActive).toList();
+  }
+
+  List<Conversation> getArchivedConversations() {
+    return _conversations.where((c) => c.isArchived).toList();
+  }
+
+  List<Conversation> getMutedConversations() {
+    return _conversations.where((c) => c.isMuted).toList();
+  }
+
+  List<Conversation> getUnreadConversations() {
+    return _conversations.where((c) => c.unreadCount > 0).toList();
+  }
+
+  // Subscribe to conversation list updates when screen is active
+  void subscribeToConversationListUpdates() {
+    _webSocketService.subscribeToConversationList();
+  }
+
+  // Unsubscribe when screen is inactive
+  void unsubscribeFromConversationListUpdates() {
+    _webSocketService.unsubscribeFromConversationList();
+  }
+
+  // Request fresh conversation list from server
+  void requestConversationListRefresh() {
+    _webSocketService.refreshConversationList();
+  }
+
   Future<void> loadMessages(String conversationId) async {
     try {
       // Prevent loading if already in progress
@@ -431,6 +651,10 @@ class ChatProvider extends ChangeNotifier {
       messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
       _messages[conversationId] = messages;
+
+      // Preload user information for conversation participants and message senders
+      await preloadConversationUsers(conversationId);
+      await preloadMessageSenders(conversationId);
 
       _webSocketService.joinConversation(conversationId);
       notifyListeners();
@@ -508,17 +732,18 @@ class ChatProvider extends ChangeNotifier {
         lastMessage = '📍 Location';
       }
 
-      final updatedConversation = Conversation(
-        id: conversation.id,
-        type: conversation.type,
-        participants: conversation.participants,
-        title: conversation.title,
-        description: conversation.description,
-        createdBy: conversation.createdBy,
+      // Increment unread count if message is not from current user
+      int newUnreadCount = conversation.unreadCount;
+      if (message.sender != _currentUser?.id) {
+        newUnreadCount++;
+      }
+
+      final updatedConversation = conversation.copyWith(
         lastMessage: lastMessage,
         lastActivity: message.createdAt,
-        isActive: conversation.isActive,
-        createdAt: conversation.createdAt,
+        lastMessageType: message.type,
+        lastMessageSender: message.sender,
+        unreadCount: newUnreadCount,
         updatedAt: DateTime.now(),
       );
 
@@ -555,11 +780,7 @@ class ChatProvider extends ChangeNotifier {
     try {
       final conversation = await ApiService.createConversation(
         type: type,
-        // include myself as a participant
-        participants: [
-          if (_currentUser != null) _currentUser!.id,
-          ...participants,
-        ],
+        participants: participants,
         title: title,
       );
       _conversations.add(conversation);
@@ -696,14 +917,10 @@ class ChatProvider extends ChangeNotifier {
   ) {
     for (final conversation in _conversations) {
       if (conversation.type == type) {
-        // For direct conversations, check if participants match (including current user)
+        // For direct conversations, check if participants match exactly
         if (type == 'direct' && conversation.participants.length == 2) {
-          final allParticipants = [
-            ...participants,
-            _currentUser?.id,
-          ].where((id) => id != null).toList();
           final conversationParticipants = conversation.participants.toSet();
-          final targetParticipants = allParticipants.toSet();
+          final targetParticipants = participants.toSet();
 
           if (conversationParticipants.length == targetParticipants.length &&
               conversationParticipants.containsAll(targetParticipants)) {
@@ -712,12 +929,8 @@ class ChatProvider extends ChangeNotifier {
         }
         // For group conversations, check if exact same participants
         else if (type == 'group') {
-          final allParticipants = [
-            ...participants,
-            _currentUser?.id,
-          ].where((id) => id != null).toList();
           final conversationParticipants = conversation.participants.toSet();
-          final targetParticipants = allParticipants.toSet();
+          final targetParticipants = participants.toSet();
 
           if (conversationParticipants.length == targetParticipants.length &&
               conversationParticipants.containsAll(targetParticipants)) {
@@ -913,8 +1126,59 @@ class ChatProvider extends ChangeNotifier {
     );
   }
 
+  // Get user display name (try fullName first, then username, fallback to ID)
+  String getUserDisplayName(String userId) {
+    final user = _userCache[userId];
+    if (user != null) {
+      return user.fullName?.isNotEmpty == true
+          ? user.fullName!
+          : user.username.isNotEmpty
+          ? user.username
+          : userId;
+    }
+    return userId; // Fallback to user ID if not in cache
+  }
+
+  // Get user avatar URL
+  String? getUserAvatar(String userId) {
+    final user = _userCache[userId];
+    return user?.avatar;
+  }
+
+  // Pre-load users for conversation participants to avoid loading delays
+  Future<void> preloadConversationUsers(String conversationId) async {
+    final conversation = getConversationById(conversationId);
+    if (conversation == null) return;
+
+    // Load all participants who aren't already cached
+    final uncachedParticipants = conversation.participants
+        .where((id) => !_userCache.containsKey(id))
+        .toList();
+
+    for (final userId in uncachedParticipants) {
+      await getUser(userId); // This will cache the user
+    }
+  }
+
+  // Load users for messages in conversation (for sender info)
+  Future<void> preloadMessageSenders(String conversationId) async {
+    final messages = _messages[conversationId] ?? [];
+    final senderIds = messages
+        .map((m) => m.sender)
+        .where((senderId) => !_userCache.containsKey(senderId))
+        .toSet()
+        .toList();
+
+    for (final senderId in senderIds) {
+      await getUser(senderId);
+    }
+  }
+
   @override
   void dispose() {
+    // Unsubscribe from conversation list updates
+    _webSocketService.unsubscribeFromConversationList();
+    // Dispose WebSocket service
     _webSocketService.dispose();
     super.dispose();
   }

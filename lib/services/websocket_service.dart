@@ -132,6 +132,48 @@ class WebSocketService {
     });
   }
 
+  // Subscribe to conversation list updates
+  void subscribeToConversationList() {
+    _send({'type': 'subscribe_conversation_list', 'data': {}});
+  }
+
+  // Unsubscribe from conversation list updates
+  void unsubscribeFromConversationList() {
+    _send({'type': 'unsubscribe_conversation_list', 'data': {}});
+  }
+
+  // Request conversation list refresh
+  void refreshConversationList() {
+    _send({'type': 'refresh_conversation_list', 'data': {}});
+  }
+
+  // Update conversation read status
+  void markConversationAsRead(String conversationId) {
+    _send({
+      'type': 'mark_conversation_read',
+      'conversationId': conversationId,
+      'data': {},
+    });
+  }
+
+  // Archive/unarchive conversation
+  void archiveConversation(String conversationId, bool archive) {
+    _send({
+      'type': 'archive_conversation',
+      'conversationId': conversationId,
+      'data': {'archive': archive},
+    });
+  }
+
+  // Mute/unmute conversation
+  void muteConversation(String conversationId, bool mute) {
+    _send({
+      'type': 'mute_conversation',
+      'conversationId': conversationId,
+      'data': {'mute': mute},
+    });
+  }
+
   void disconnect() {
     _isConnected = false;
     _reconnectTimer?.cancel();

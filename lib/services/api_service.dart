@@ -4,6 +4,7 @@ export 'base_service.dart';
 export 'conversation_service.dart';
 export 'friend_service.dart';
 export 'message_service.dart';
+export 'payment_service.dart';
 export 'upload_service.dart';
 export 'user_service.dart';
 

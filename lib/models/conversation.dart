@@ -10,6 +10,11 @@ class Conversation {
   final bool isActive;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final int unreadCount;
+  final bool isMuted;
+  final bool isArchived;
+  final String? lastMessageType;
+  final String? lastMessageSender;
 
   Conversation({
     required this.id,
@@ -23,6 +28,11 @@ class Conversation {
     required this.isActive,
     required this.createdAt,
     required this.updatedAt,
+    this.unreadCount = 0,
+    this.isMuted = false,
+    this.isArchived = false,
+    this.lastMessageType,
+    this.lastMessageSender,
   });
 
   factory Conversation.fromJson(Map<String, dynamic> json) {
@@ -44,6 +54,11 @@ class Conversation {
       updatedAt: DateTime.parse(
         json['updatedAt'] ?? DateTime.now().toIso8601String(),
       ),
+      unreadCount: json['unreadCount'] ?? 0,
+      isMuted: json['isMuted'] ?? false,
+      isArchived: json['isArchived'] ?? false,
+      lastMessageType: json['lastMessageType'],
+      lastMessageSender: json['lastMessageSender'],
     );
   }
 
@@ -60,6 +75,50 @@ class Conversation {
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'unreadCount': unreadCount,
+      'isMuted': isMuted,
+      'isArchived': isArchived,
+      'lastMessageType': lastMessageType,
+      'lastMessageSender': lastMessageSender,
     };
+  }
+
+  // Helper method to create a copy with updated properties
+  Conversation copyWith({
+    String? id,
+    String? type,
+    List<String>? participants,
+    String? title,
+    String? description,
+    String? createdBy,
+    String? lastMessage,
+    DateTime? lastActivity,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    int? unreadCount,
+    bool? isMuted,
+    bool? isArchived,
+    String? lastMessageType,
+    String? lastMessageSender,
+  }) {
+    return Conversation(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      participants: participants ?? this.participants,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      createdBy: createdBy ?? this.createdBy,
+      lastMessage: lastMessage ?? this.lastMessage,
+      lastActivity: lastActivity ?? this.lastActivity,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      unreadCount: unreadCount ?? this.unreadCount,
+      isMuted: isMuted ?? this.isMuted,
+      isArchived: isArchived ?? this.isArchived,
+      lastMessageType: lastMessageType ?? this.lastMessageType,
+      lastMessageSender: lastMessageSender ?? this.lastMessageSender,
+    );
   }
 }

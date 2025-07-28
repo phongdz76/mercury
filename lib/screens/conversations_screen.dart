@@ -5,9 +5,11 @@ import '../providers/chat_provider.dart';
 import '../models/conversation.dart';
 import '../constants/app_constants.dart';
 import '../utils/utils.dart';
+import '../widgets/premium_status_widget.dart';
 import 'chat_screen.dart';
 import 'profile_screen.dart';
 import 'friends_screen.dart';
+import 'create_conversation_screen.dart';
 
 class ConversationsScreen extends StatefulWidget {
   const ConversationsScreen({super.key});
@@ -21,18 +23,63 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ChatProvider>().initialize();
+      final chatProvider = context.read<ChatProvider>();
+      chatProvider.initialize();
+      chatProvider.subscribeToConversationListUpdates();
     });
+  }
+
+  @override
+  void dispose() {
+    context.read<ChatProvider>().unsubscribeFromConversationListUpdates();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(AppStrings.conversations),
+        title: Consumer<ChatProvider>(
+          builder: (context, chatProvider, child) {
+            final unreadCount = chatProvider.getTotalUnreadCount();
+            return Row(
+              children: [
+                const Text(AppStrings.conversations),
+                if (unreadCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      unreadCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
+          // Refresh button
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              context.read<ChatProvider>().requestConversationListRefresh();
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.people),
             onPressed: () {
@@ -53,7 +100,14 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () => _showCreateConversationDialog(context),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const CreateConversationScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -78,6 +132,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     onPressed: () {
                       chatProvider.clearError();
                       chatProvider.initialize();
+                      chatProvider.subscribeToConversationListUpdates();
                     },
                     child: const Text('Retry'),
                   ),
@@ -86,23 +141,42 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             );
           }
 
-          if (chatProvider.conversations.isEmpty) {
+          // Get active conversations (not archived)
+          final activeConversations = chatProvider.getActiveConversations();
+
+          if (activeConversations.isEmpty) {
             return RefreshIndicator(
               onRefresh: () async {
                 await chatProvider.refreshConversations();
+                chatProvider.requestConversationListRefresh();
               },
-              child: const Center(child: Text(AppStrings.noConversations)),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: const Center(child: Text(AppStrings.noConversations)),
+                ),
+              ),
             );
           }
 
           return RefreshIndicator(
             onRefresh: () async {
               await chatProvider.refreshConversations();
+              chatProvider.requestConversationListRefresh();
             },
             child: ListView.builder(
-              itemCount: chatProvider.conversations.length,
+              itemCount:
+                  activeConversations.length + 1, // +1 for premium widget
               itemBuilder: (context, index) {
-                final conversation = chatProvider.conversations[index];
+                if (index == 0) {
+                  // Show premium widget at the top
+                  return const PremiumStatusWidget(showFullCard: false);
+                }
+
+                final conversation =
+                    activeConversations[index -
+                        1]; // -1 because of premium widget
                 return _buildConversationItem(context, conversation);
               },
             ),
@@ -245,17 +319,60 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               ),
               trailing: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
                     Utils.formatDate(conversation.lastActivity),
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 4),
-                  if (conversation.isActive)
-                    const Icon(Icons.circle, color: Colors.blue, size: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Muted indicator
+                      if (conversation.isMuted)
+                        const Icon(
+                          Icons.volume_off,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                      const SizedBox(width: 4),
+                      // Unread count badge
+                      if (conversation.unreadCount > 0)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: conversation.isMuted
+                                ? Colors.grey
+                                : Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            conversation.unreadCount > 99
+                                ? '99+'
+                                : conversation.unreadCount.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      else if (conversation.isActive)
+                        const Icon(Icons.circle, color: Colors.blue, size: 8),
+                    ],
+                  ),
                 ],
               ),
               onTap: () {
+                // Mark conversation as read when tapped
+                if (conversation.unreadCount > 0) {
+                  chatProvider.markConversationAsRead(conversation.id);
+                }
+
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -263,6 +380,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         ChatScreen(conversation: conversation),
                   ),
                 );
+              },
+              onLongPress: () {
+                _showConversationOptions(context, conversation, chatProvider);
               },
             ),
           );
@@ -310,17 +430,54 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
           ),
           trailing: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 Utils.formatDate(conversation.lastActivity),
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
               const SizedBox(height: 4),
-              if (conversation.isActive)
-                const Icon(Icons.circle, color: Colors.blue, size: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Muted indicator
+                  if (conversation.isMuted)
+                    const Icon(Icons.volume_off, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  // Unread count badge
+                  if (conversation.unreadCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: conversation.isMuted ? Colors.grey : Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        conversation.unreadCount > 99
+                            ? '99+'
+                            : conversation.unreadCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                  else if (conversation.isActive)
+                    const Icon(Icons.circle, color: Colors.blue, size: 8),
+                ],
+              ),
             ],
           ),
           onTap: () {
+            // Mark conversation as read when tapped
+            if (conversation.unreadCount > 0) {
+              chatProvider.markConversationAsRead(conversation.id);
+            }
+
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -328,146 +485,130 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               ),
             );
           },
+          onLongPress: () {
+            _showConversationOptions(context, conversation, chatProvider);
+          },
         ),
       );
     }
   }
 
-  void _showCreateConversationDialog(BuildContext context) {
-    showDialog(
+  void _showConversationOptions(
+    BuildContext context,
+    Conversation conversation,
+    ChatProvider chatProvider,
+  ) {
+    showModalBottomSheet(
       context: context,
-      builder: (context) => const CreateConversationDialog(),
-    );
-  }
-}
-
-class CreateConversationDialog extends StatefulWidget {
-  const CreateConversationDialog({super.key});
-
-  @override
-  State<CreateConversationDialog> createState() =>
-      _CreateConversationDialogState();
-}
-
-class _CreateConversationDialogState extends State<CreateConversationDialog> {
-  final _titleController = TextEditingController();
-  final _participantController = TextEditingController();
-  String _selectedType = ApiConstants.conversationTypeDirect;
-  final List<String> _participants = [];
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _participantController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(AppStrings.createConversation),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DropdownButtonFormField<String>(
-            value: _selectedType,
-            decoration: const InputDecoration(labelText: 'Type'),
-            items: const [
-              DropdownMenuItem(
-                value: ApiConstants.conversationTypeDirect,
-                child: Text('Direct'),
-              ),
-              DropdownMenuItem(
-                value: ApiConstants.conversationTypeGroup,
-                child: Text('Group'),
-              ),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _selectedType = value!;
-              });
-            },
-          ),
-          const SizedBox(height: 16),
-
-          if (_selectedType == ApiConstants.conversationTypeGroup)
-            TextField(
-              controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Group Title'),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Conversation Options',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-
-          const SizedBox(height: 16),
-          TextField(
-            controller: _participantController,
-            decoration: const InputDecoration(
-              labelText: 'Participant ID',
-              hintText: 'Enter user ID and press Add',
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          ElevatedButton(
-            onPressed: () {
-              final participantId = _participantController.text.trim();
-              if (participantId.isNotEmpty &&
-                  !_participants.contains(participantId)) {
-                setState(() {
-                  _participants.add(participantId);
-                  _participantController.clear();
-                });
-              }
-            },
-            child: const Text('Add Participant'),
-          ),
-
-          if (_participants.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const Text('Participants:'),
-            ..._participants.map(
-              (id) => Chip(
-                label: Text(id),
-                onDeleted: () {
-                  setState(() {
-                    _participants.remove(id);
-                  });
+
+            // Mark as read/unread
+            if (conversation.unreadCount > 0)
+              ListTile(
+                leading: const Icon(Icons.mark_chat_read),
+                title: const Text('Mark as read'),
+                onTap: () {
+                  chatProvider.markConversationAsRead(conversation.id);
+                  Navigator.pop(context);
+                },
+              )
+            else
+              ListTile(
+                leading: const Icon(Icons.mark_chat_unread),
+                title: const Text('Mark as unread'),
+                onTap: () {
+                  // Mark as unread functionality (if needed)
+                  Navigator.pop(context);
                 },
               ),
+
+            // Mute/Unmute
+            ListTile(
+              leading: Icon(
+                conversation.isMuted ? Icons.volume_up : Icons.volume_off,
+              ),
+              title: Text(conversation.isMuted ? 'Unmute' : 'Mute'),
+              onTap: () {
+                chatProvider.muteConversation(
+                  conversation.id,
+                  !conversation.isMuted,
+                );
+                Navigator.pop(context);
+              },
+            ),
+
+            // Archive/Unarchive
+            ListTile(
+              leading: Icon(
+                conversation.isArchived ? Icons.unarchive : Icons.archive,
+              ),
+              title: Text(conversation.isArchived ? 'Unarchive' : 'Archive'),
+              onTap: () {
+                chatProvider.archiveConversation(
+                  conversation.id,
+                  !conversation.isArchived,
+                );
+                Navigator.pop(context);
+              },
+            ),
+
+            // Delete conversation
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text(
+                'Delete conversation',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteConfirmation(context, conversation, chatProvider);
+              },
             ),
           ],
-        ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _participants.isNotEmpty ? _createConversation : null,
-          child: const Text('Create'),
-        ),
-      ],
     );
   }
 
-  Future<void> _createConversation() async {
-    try {
-      await context.read<ChatProvider>().createConversation(
-        type: _selectedType,
-        participants: _participants,
-        title: _titleController.text.trim().isNotEmpty
-            ? _titleController.text.trim()
-            : null,
-      );
-
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating conversation: $e')),
-        );
-      }
-    }
+  void _showDeleteConfirmation(
+    BuildContext context,
+    Conversation conversation,
+    ChatProvider chatProvider,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Conversation'),
+        content: const Text(
+          'Are you sure you want to delete this conversation? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              chatProvider.removeConversationFromList(conversation.id);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Conversation deleted')),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 }

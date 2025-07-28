@@ -30,6 +30,23 @@ class Utils {
     }
   }
 
+  static String formatRelativeTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inMinutes < 1) {
+      return 'just now';
+    } else if (diff.inMinutes < 60) {
+      return '${diff.inMinutes} minutes ago';
+    } else if (diff.inHours < 24) {
+      return '${diff.inHours} hours ago';
+    } else if (diff.inDays < 7) {
+      return '${diff.inDays} days ago';
+    } else {
+      return formatDate(time);
+    }
+  }
+
   static void showSnackBar(
     BuildContext context,
     String message, {

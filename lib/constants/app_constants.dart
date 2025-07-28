@@ -1,6 +1,6 @@
 class ApiConstants {
-  static const String baseUrl = 'http://192.168.1.5:3000';
-  static const String wsUrl = 'ws://192.168.1.5:3000/chat/ws';
+  static const String baseUrl = 'https://api.meowsical.me';
+  static const String wsUrl = 'wss://api.meowsical.me/chat/ws';
 
   // API Endpoints
   static const String authLogin = '/auth/login';
@@ -11,6 +11,9 @@ class ApiConstants {
   static const String profile = '/me';
   static const String changePassword = '/me/password';
   static const String userAvatar = '/users'; // For /users/:id/avatar
+  static const String payments = '/payments';
+  static const String attachments =
+      '/uploads/attachments'; // For /uploads/attachments/:filename
 
   // WebSocket Event Types
   static const String joinConversation = 'join_conversation';

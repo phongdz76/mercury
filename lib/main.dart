@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/friend_provider.dart';
+import 'providers/payment_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/conversations_screen.dart';
 import 'services/api_service.dart';
@@ -24,6 +25,7 @@ class MainApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => FriendProvider(WebSocketService()),
         ),
+        ChangeNotifierProvider(create: (context) => PaymentProvider()),
       ],
       child: MaterialApp(
         title: AppStrings.appName,

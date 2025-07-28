@@ -6,6 +6,9 @@ import '../providers/chat_provider.dart';
 import '../services/api_service.dart';
 import '../constants/app_constants.dart';
 import '../utils/utils.dart';
+import '../screens/premium_purchase_screen.dart';
+import '../screens/payment_history_screen.dart';
+import '../widgets/premium_status_widget.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -134,6 +137,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 const SizedBox(height: 32),
 
+                // Premium Status
+                const PremiumStatusWidget(showFullCard: false),
+                const SizedBox(height: 16),
+
                 // Action buttons
                 SizedBox(
                   width: double.infinity,
@@ -144,6 +151,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Premium/Payment buttons
+                if (user.isPremium) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _navigateToPaymentHistory(context),
+                      icon: const Icon(Icons.receipt_long),
+                      label: const Text('Payment History'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                      ),
+                    ),
+                  ),
+                ] else ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _navigateToPremiumPurchase(context),
+                      icon: const Icon(Icons.star),
+                      label: const Text('Upgrade to Premium'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.amber,
+                        foregroundColor: Colors.black,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16),
+
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -237,6 +274,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const ChangePasswordScreen()),
+    );
+  }
+
+  void _navigateToPremiumPurchase(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PremiumPurchaseScreen()),
+    );
+  }
+
+  void _navigateToPaymentHistory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PaymentHistoryScreen()),
     );
   }
 
