@@ -15,6 +15,8 @@ class ChatProvider extends ChangeNotifier {
   Map<String, List<Message>> _messages = {};
   Map<String, bool> _typingUsers = {};
   Map<String, User> _userCache = {}; // Add user cache
+  Map<String, List<Map<String, dynamic>>> _pendingAttachments =
+      {}; // Hold pending attachments
   bool _isLoading = false;
   String? _error;
 
@@ -24,6 +26,8 @@ class ChatProvider extends ChangeNotifier {
   Map<String, List<Message>> get messages => _messages;
   Map<String, bool> get typingUsers => _typingUsers;
   Map<String, User> get userCache => _userCache; // Add getter for user cache
+  Map<String, List<Map<String, dynamic>>> get pendingAttachments =>
+      _pendingAttachments; // Getter for pending attachments
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isConnected => _webSocketService.isConnected;
@@ -274,6 +278,9 @@ class ChatProvider extends ChangeNotifier {
 
         // Remove typing indicator
         _typingUsers.remove(conversationId);
+
+        // Remove pending attachments
+        _pendingAttachments.remove(conversationId);
 
         notifyListeners();
       }
@@ -585,6 +592,9 @@ class ChatProvider extends ChangeNotifier {
     _conversations.removeWhere((c) => c.id == conversationId);
     _messages.remove(conversationId);
     _typingUsers.remove(conversationId);
+    _pendingAttachments.remove(
+      conversationId,
+    ); // Also clear pending attachments
     notifyListeners();
   }
 
@@ -751,6 +761,9 @@ class ChatProvider extends ChangeNotifier {
   void clearConversationMessages(String conversationId) {
     _messages.remove(conversationId);
     _typingUsers.remove(conversationId);
+    _pendingAttachments.remove(
+      conversationId,
+    ); // Also clear pending attachments
     notifyListeners();
   }
 
@@ -766,6 +779,7 @@ class ChatProvider extends ChangeNotifier {
     _messages.clear();
     _typingUsers.clear();
     _userCache.clear();
+    _pendingAttachments.clear(); // Also clear pending attachments
     _currentUser = null;
     _isLoading = false;
     _error = null;
@@ -872,13 +886,11 @@ class ChatProvider extends ChangeNotifier {
     _webSocketService.markAsRead(conversationId, messageId);
   }
 
-  // Upload file and send message
-  Future<void> sendMessageWithFile({
+  // Upload file and add to pending attachments (don't send yet)
+  Future<void> addPendingAttachment({
     required String conversationId,
     required File file,
     required String type,
-    String? caption,
-    String? replyTo,
   }) async {
     try {
       _isLoading = true;
@@ -896,33 +908,115 @@ class ChatProvider extends ChangeNotifier {
       final fileSize = uploadResult['size'] as int;
       final mimeType = uploadResult['mimetype'] as String;
 
-      // Prepare attachment data for WebSocket
-      final attachments = [
-        {
-          'name': fileName,
-          'url': fileUrl,
-          'type': type.toUpperCase(), // FILE, IMAGE, etc.
-          'size': fileSize,
-          'mimeType': mimeType,
-        },
-      ];
+      // Create attachment data
+      final attachment = {
+        'name': fileName,
+        'url': fileUrl,
+        'type': type.toUpperCase(), // FILE, IMAGE, etc.
+        'size': fileSize,
+        'mimeType': mimeType,
+        'originalFile': file, // Keep reference to original file for preview
+      };
 
-      // Send message with attachment via WebSocket
-      _webSocketService.sendMessage(
-        conversationId: conversationId,
-        content: caption ?? fileName,
-        type: type,
-        replyTo: replyTo,
-        attachments: attachments,
-      );
+      // Add to pending attachments
+      if (!_pendingAttachments.containsKey(conversationId)) {
+        _pendingAttachments[conversationId] = [];
+      }
+      _pendingAttachments[conversationId]!.add(attachment);
 
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _isLoading = false;
-      _error = 'Failed to send file: $e';
+      _error = 'Failed to upload file: $e';
       notifyListeners();
     }
+  }
+
+  // Send message with pending attachments
+  Future<void> sendMessageWithPendingAttachments({
+    required String conversationId,
+    required String content,
+    String? replyTo,
+  }) async {
+    try {
+      final attachments = _pendingAttachments[conversationId] ?? [];
+
+      if (attachments.isEmpty) {
+        // No attachments, send normal text message
+        await sendMessage(
+          conversationId: conversationId,
+          content: content,
+          replyTo: replyTo,
+        );
+        return;
+      }
+
+      // Prepare attachments for WebSocket (remove originalFile)
+      final cleanAttachments = attachments.map((attachment) {
+        final clean = Map<String, dynamic>.from(attachment);
+        clean.remove('originalFile'); // Remove file reference
+        return clean;
+      }).toList();
+
+      // Determine message type based on attachments
+      String messageType = 'text';
+      if (cleanAttachments.isNotEmpty) {
+        final firstAttachmentType = cleanAttachments.first['type']
+            .toString()
+            .toLowerCase();
+        if (firstAttachmentType.contains('image')) {
+          messageType = 'image';
+        } else {
+          messageType = 'file';
+        }
+      }
+
+      // Send message with attachments via WebSocket
+      _webSocketService.sendMessage(
+        conversationId: conversationId,
+        content: content,
+        type: messageType,
+        replyTo: replyTo,
+        attachments: cleanAttachments,
+      );
+
+      // Clear pending attachments after sending
+      _pendingAttachments.remove(conversationId);
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to send message: $e';
+      notifyListeners();
+    }
+  }
+
+  // Remove a pending attachment
+  void removePendingAttachment(String conversationId, int index) {
+    final attachments = _pendingAttachments[conversationId];
+    if (attachments != null && index >= 0 && index < attachments.length) {
+      attachments.removeAt(index);
+      if (attachments.isEmpty) {
+        _pendingAttachments.remove(conversationId);
+      }
+      notifyListeners();
+    }
+  }
+
+  // Clear all pending attachments for a conversation
+  void clearPendingAttachments(String conversationId) {
+    _pendingAttachments.remove(conversationId);
+    notifyListeners();
+  }
+
+  // Get pending attachments for a conversation
+  List<Map<String, dynamic>> getPendingAttachments(String conversationId) {
+    return _pendingAttachments[conversationId] ?? [];
+  }
+
+  // Check if conversation has pending attachments
+  bool hasPendingAttachments(String conversationId) {
+    final attachments = _pendingAttachments[conversationId];
+    return attachments != null && attachments.isNotEmpty;
   }
 
   // Update current user (for profile updates)
