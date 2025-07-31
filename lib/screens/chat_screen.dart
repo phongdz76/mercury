@@ -186,11 +186,11 @@ class _ChatScreenState extends State<ChatScreen> {
               bottom: 100,
               child: FloatingActionButton.small(
                 onPressed: _scrollToBottom,
-                backgroundColor: Colors.blue,
-                child: const Icon(
-                  Icons.keyboard_arrow_down,
-                  color: Colors.white,
-                ),
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                foregroundColor: Theme.of(
+                  context,
+                ).colorScheme.onPrimaryContainer,
+                child: const Icon(Icons.keyboard_arrow_down_rounded),
               ),
             ),
         ],

@@ -70,8 +70,8 @@ class ChatMessageWidget extends StatelessWidget {
                       maxWidth: MediaQuery.of(context).size.width * 0.7,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(12),
+                      color: Theme.of(context).colorScheme.surfaceVariant,
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,17 +93,21 @@ class ChatMessageWidget extends StatelessWidget {
                           children: [
                             Text(
                               Utils.formatTime(message.createdAt),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                             ),
                             if (message.isEdited) ...[
                               const SizedBox(width: 4),
-                              const Icon(
-                                Icons.edit,
+                              Icon(
+                                Icons.edit_rounded,
                                 size: 12,
-                                color: Colors.grey,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ],
                           ],
@@ -148,8 +152,10 @@ class ChatMessageWidget extends StatelessWidget {
             maxWidth: MediaQuery.of(context).size.width * 0.7,
           ),
           decoration: BoxDecoration(
-            color: isCurrentUser ? Colors.blue : Colors.grey[200],
-            borderRadius: BorderRadius.circular(12),
+            color: isCurrentUser
+                ? Theme.of(context).colorScheme.primaryContainer
+                : Theme.of(context).colorScheme.surfaceVariant,
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,10 +164,9 @@ class ChatMessageWidget extends StatelessWidget {
               if (!isCurrentUser && !isGroupChat)
                 Text(
                   senderDisplayName,
-                  style: const TextStyle(
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                    color: Colors.grey,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
 
@@ -184,24 +189,37 @@ class ChatMessageWidget extends StatelessWidget {
                 children: [
                   Text(
                     Utils.formatTime(message.createdAt),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isCurrentUser ? Colors.white70 : Colors.grey,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: isCurrentUser
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer.withOpacity(0.7)
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
 
                   if (message.isEdited) ...[
                     const SizedBox(width: 4),
                     Icon(
-                      Icons.edit,
+                      Icons.edit_rounded,
                       size: 12,
-                      color: isCurrentUser ? Colors.white70 : Colors.grey,
+                      color: isCurrentUser
+                          ? Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer.withOpacity(0.7)
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ],
 
                   if (isCurrentUser) ...[
                     const SizedBox(width: 4),
-                    Icon(Icons.check, size: 12, color: Colors.white70),
+                    Icon(
+                      Icons.check_rounded,
+                      size: 12,
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onPrimaryContainer.withOpacity(0.7),
+                    ),
                   ],
                 ],
               ),
@@ -247,6 +265,9 @@ class ChatMessageWidget extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) {
         return DraggableScrollableSheet(
           initialChildSize: 0.6,
@@ -259,8 +280,7 @@ class ChatMessageWidget extends StatelessWidget {
                 children: [
                   Text(
                     '${replies.length} ${replies.length == 1 ? 'Reply' : 'Replies'}',
-                    style: const TextStyle(
-                      fontSize: 18,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -338,7 +358,11 @@ class TextMessageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       message.content,
-      style: TextStyle(color: isCurrentUser ? Colors.white : Colors.black),
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: isCurrentUser
+            ? Theme.of(context).colorScheme.onPrimaryContainer
+            : Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
     );
   }
 }
@@ -410,18 +434,30 @@ class ImageMessageWidget extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.error,
-                            color: isCurrentUser ? Colors.white70 : Colors.grey,
+                            Icons.error_rounded,
+                            color: isCurrentUser
+                                ? Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer
+                                      .withOpacity(0.7)
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Failed to load image',
-                            style: TextStyle(
-                              color: isCurrentUser
-                                  ? Colors.white70
-                                  : Colors.grey,
-                              fontSize: 12,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: isCurrentUser
+                                      ? Theme.of(context)
+                                            .colorScheme
+                                            .onPrimaryContainer
+                                            .withOpacity(0.7)
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                ),
                           ),
                         ],
                       ),
@@ -436,8 +472,10 @@ class ImageMessageWidget extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               message.content,
-              style: TextStyle(
-                color: isCurrentUser ? Colors.white : Colors.black,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: isCurrentUser
+                    ? Theme.of(context).colorScheme.onPrimaryContainer
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -487,8 +525,10 @@ class FileMessageWidget extends StatelessWidget {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               message.content,
-              style: TextStyle(
-                color: isCurrentUser ? Colors.white : Colors.black,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: isCurrentUser
+                    ? Theme.of(context).colorScheme.onPrimaryContainer
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -509,7 +549,7 @@ class FileMessageWidget extends StatelessWidget {
         height: 200,
         decoration: BoxDecoration(
           color: Colors.black,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Stack(
           alignment: Alignment.center,
@@ -520,9 +560,13 @@ class FileMessageWidget extends StatelessWidget {
               height: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.black54,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.video_library, color: Colors.white, size: 48),
+              child: Icon(
+                Icons.video_library_rounded,
+                color: Colors.white,
+                size: 48,
+              ),
             ),
             // Play button overlay
             Container(
@@ -539,7 +583,7 @@ class FileMessageWidget extends StatelessWidget {
                   );
                 },
                 icon: const Icon(
-                  Icons.play_arrow,
+                  Icons.play_arrow_rounded,
                   color: Colors.white,
                   size: 32,
                 ),
@@ -558,7 +602,7 @@ class FileMessageWidget extends StatelessWidget {
                   onPressed: () =>
                       _downloadAttachment(context, attachment, url),
                   icon: const Icon(
-                    Icons.download,
+                    Icons.download_rounded,
                     color: Colors.white,
                     size: 20,
                   ),
@@ -583,14 +627,18 @@ class FileMessageWidget extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isCurrentUser ? Colors.blue.shade700 : Colors.grey[300],
-          borderRadius: BorderRadius.circular(8),
+          color: isCurrentUser
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.8)
+              : Theme.of(context).colorScheme.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Container(
               decoration: BoxDecoration(
-                color: isCurrentUser ? Colors.blue.shade800 : Colors.grey[400],
+                color: isCurrentUser
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outline,
                 shape: BoxShape.circle,
               ),
               child: IconButton(
@@ -602,8 +650,10 @@ class FileMessageWidget extends StatelessWidget {
                   );
                 },
                 icon: Icon(
-                  Icons.play_arrow,
-                  color: isCurrentUser ? Colors.white : Colors.black54,
+                  Icons.play_arrow_rounded,
+                  color: isCurrentUser
+                      ? Theme.of(context).colorScheme.onPrimary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -614,8 +664,10 @@ class FileMessageWidget extends StatelessWidget {
                 children: [
                   Text(
                     attachment.name ?? 'Audio file',
-                    style: TextStyle(
-                      color: isCurrentUser ? Colors.white : Colors.black,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isCurrentUser
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
@@ -624,9 +676,12 @@ class FileMessageWidget extends StatelessWidget {
                   if (attachment.size != null)
                     Text(
                       _formatFileSize(attachment.size),
-                      style: TextStyle(
-                        color: isCurrentUser ? Colors.white70 : Colors.grey,
-                        fontSize: 12,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: isCurrentUser
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withOpacity(0.8)
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                 ],
@@ -635,8 +690,10 @@ class FileMessageWidget extends StatelessWidget {
             IconButton(
               onPressed: () => _downloadAttachment(context, attachment, url),
               icon: Icon(
-                Icons.download,
-                color: isCurrentUser ? Colors.white : Colors.black54,
+                Icons.download_rounded,
+                color: isCurrentUser
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -655,14 +712,18 @@ class FileMessageWidget extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isCurrentUser ? Colors.blue.shade700 : Colors.grey[300],
-          borderRadius: BorderRadius.circular(8),
+          color: isCurrentUser
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.8)
+              : Theme.of(context).colorScheme.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Icon(
               _getFileIconByType(attachment),
-              color: isCurrentUser ? Colors.white : Colors.black54,
+              color: isCurrentUser
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
               size: 32,
             ),
             const SizedBox(width: 12),
@@ -672,8 +733,10 @@ class FileMessageWidget extends StatelessWidget {
                 children: [
                   Text(
                     attachment.name ?? 'Unknown file',
-                    style: TextStyle(
-                      color: isCurrentUser ? Colors.white : Colors.black,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isCurrentUser
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 2,
@@ -682,17 +745,22 @@ class FileMessageWidget extends StatelessWidget {
                   if (attachment.size != null)
                     Text(
                       _formatFileSize(attachment.size),
-                      style: TextStyle(
-                        color: isCurrentUser ? Colors.white70 : Colors.grey,
-                        fontSize: 12,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: isCurrentUser
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.onPrimary.withOpacity(0.8)
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                 ],
               ),
             ),
             Icon(
-              Icons.download,
-              color: isCurrentUser ? Colors.white : Colors.black54,
+              Icons.download_rounded,
+              color: isCurrentUser
+                  ? Theme.of(context).colorScheme.onPrimary
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ],
         ),
@@ -759,35 +827,35 @@ class FileMessageWidget extends StatelessWidget {
     final extension = fileName.split('.').last.toLowerCase();
     switch (extension) {
       case 'pdf':
-        return Icons.picture_as_pdf;
+        return Icons.picture_as_pdf_rounded;
       case 'doc':
       case 'docx':
-        return Icons.description;
+        return Icons.description_rounded;
       case 'xls':
       case 'xlsx':
-        return Icons.table_chart;
+        return Icons.table_chart_rounded;
       case 'ppt':
       case 'pptx':
-        return Icons.slideshow;
+        return Icons.slideshow_rounded;
       case 'txt':
-        return Icons.text_snippet;
+        return Icons.text_snippet_rounded;
       case 'zip':
       case 'rar':
-        return Icons.archive;
+        return Icons.archive_rounded;
       case 'mp3':
       case 'wav':
-        return Icons.audio_file;
+        return Icons.audio_file_rounded;
       case 'mp4':
       case 'mov':
-        return Icons.video_file;
+        return Icons.video_file_rounded;
       default:
-        return Icons.insert_drive_file;
+        return Icons.insert_drive_file_rounded;
     }
   }
 
   // New method to get icon based on attachment type from API
   IconData _getFileIconByType(dynamic attachment) {
-    if (attachment == null) return Icons.insert_drive_file;
+    if (attachment == null) return Icons.insert_drive_file_rounded;
 
     // Check if attachment has type field from API
     final type =
@@ -797,13 +865,13 @@ class FileMessageWidget extends StatelessWidget {
     if (type != null) {
       switch (type) {
         case 'video':
-          return Icons.video_file;
+          return Icons.video_file_rounded;
         case 'audio':
-          return Icons.audio_file;
+          return Icons.audio_file_rounded;
         case 'image':
-          return Icons.image;
+          return Icons.image_rounded;
         case 'document':
-          return Icons.description;
+          return Icons.description_rounded;
         default:
           break;
       }

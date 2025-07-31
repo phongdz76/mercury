@@ -73,8 +73,13 @@ class _ChatScreenBlocState extends State<ChatScreenBloc> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: Row(
           children: [
             UserAvatar(
@@ -88,7 +93,9 @@ class _ChatScreenBlocState extends State<ChatScreenBloc> {
                 children: [
                   Text(
                     widget.conversation.title ?? 'Chat',
-                    style: const TextStyle(fontSize: 16),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   BlocBuilder<MessageBloc, MessageState>(
                     builder: (context, state) {
@@ -97,15 +104,18 @@ class _ChatScreenBlocState extends State<ChatScreenBloc> {
                           widget.conversation.id,
                         );
                         if (isTyping) {
-                          return const Text(
+                          return Text(
                             'Typing...',
-                            style: TextStyle(fontSize: 12, color: Colors.green),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: colorScheme.primary),
                           );
                         }
                       }
-                      return const Text(
+                      return Text(
                         'Online',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       );
                     },
                   ),
@@ -168,7 +178,10 @@ class _ChatScreenBlocState extends State<ChatScreenBloc> {
                     itemCount: messages.length,
                     itemBuilder: (context, index) {
                       final message = messages[index];
-                      return _buildMessageBubble(message);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _buildMessageBubble(message),
+                      );
                     },
                   );
                 }
@@ -184,69 +197,69 @@ class _ChatScreenBlocState extends State<ChatScreenBloc> {
   }
 
   Widget _buildMessageBubble(Message message) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isMe =
         message.sender ==
         'current_user_id'; // Replace with actual current user ID
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: isMe
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        children: [
-          if (!isMe) ...[
-            UserAvatar(displayName: 'User', size: 24),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isMe ? Colors.blue : Colors.grey[300],
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    message.content,
-                    style: TextStyle(color: isMe ? Colors.white : Colors.black),
+    return Row(
+      mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+      children: [
+        if (!isMe) ...[
+          UserAvatar(displayName: 'User', size: 24),
+          const SizedBox(width: 8),
+        ],
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isMe
+                  ? colorScheme.primaryContainer
+                  : colorScheme.surfaceVariant,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message.content,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: isMe
+                        ? colorScheme.onPrimaryContainer
+                        : colorScheme.onSurfaceVariant,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatTime(message.createdAt),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isMe ? Colors.white70 : Colors.grey[600],
-                    ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatTime(message.createdAt),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: isMe
+                        ? colorScheme.onPrimaryContainer.withOpacity(0.7)
+                        : colorScheme.onSurfaceVariant.withOpacity(0.7),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          if (isMe) ...[
-            const SizedBox(width: 8),
-            UserAvatar(displayName: 'Me', size: 24),
-          ],
+        ),
+        if (isMe) ...[
+          const SizedBox(width: 8),
+          UserAvatar(displayName: 'Me', size: 24),
         ],
-      ),
+      ],
     );
   }
 
   Widget _buildMessageInput() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        color: colorScheme.surface,
+        border: Border(
+          top: BorderSide(color: colorScheme.outlineVariant, width: 1),
+        ),
       ),
       child: Row(
         children: [
@@ -257,36 +270,40 @@ class _ChatScreenBlocState extends State<ChatScreenBloc> {
               decoration: InputDecoration(
                 hintText: 'Type a message...',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
+                  borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: colorScheme.surfaceVariant,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 20,
-                  vertical: 10,
+                  vertical: 12,
                 ),
               ),
               onSubmitted: (_) => _sendMessage(),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 12),
           BlocBuilder<MessageBloc, MessageState>(
             builder: (context, state) {
               final isSending =
                   state is MessageSending &&
                   state.conversationId == widget.conversation.id;
 
-              return FloatingActionButton(
-                mini: true,
+              return FloatingActionButton.small(
                 onPressed: isSending ? null : _sendMessage,
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
                 child: isSending
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colorScheme.onPrimary,
+                        ),
                       )
-                    : const Icon(Icons.send),
+                    : const Icon(Icons.send_rounded),
               );
             },
           ),

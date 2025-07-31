@@ -34,22 +34,28 @@ class MessageReplyWidget extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 4),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: Theme.of(context).colorScheme.errorContainer,
               borderRadius: BorderRadius.circular(8),
-              border: const Border(
-                left: BorderSide(color: Colors.red, width: 3),
+              border: Border(
+                left: BorderSide(
+                  color: Theme.of(context).colorScheme.error,
+                  width: 3,
+                ),
               ),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.error_outline, size: 16, color: Colors.red),
-                SizedBox(width: 8),
+                Icon(
+                  Icons.error_outline,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(width: 8),
                 Text(
                   "Message not found",
                   style: TextStyle(
                     fontStyle: FontStyle.italic,
-                    color: Colors.red,
-                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
                   ),
                 ),
               ],
@@ -63,10 +69,13 @@ class MessageReplyWidget extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 4),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
-              border: const Border(
-                left: BorderSide(color: Colors.blue, width: 3),
+              border: Border(
+                left: BorderSide(
+                  color: Theme.of(context).colorScheme.tertiary,
+                  width: 3,
+                ),
               ),
             ),
             child: Column(

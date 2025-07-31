@@ -93,6 +93,8 @@ class TypingIndicatorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Consumer<ChatProvider>(
       builder: (context, chatProvider, child) {
         final isTyping = chatProvider.typingUsers[conversationId] ?? false;
@@ -101,13 +103,18 @@ class TypingIndicatorWidget extends StatelessWidget {
           height: isTyping ? 40 : 0,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: isTyping
-              ? const Row(
+              ? Row(
                   children: [
-                    Icon(Icons.more_horiz, color: Colors.grey),
-                    SizedBox(width: 8),
+                    Icon(
+                      Icons.more_horiz_rounded,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 8),
                     Text(
                       AppStrings.someonTyping,
-                      style: TextStyle(color: Colors.grey),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 )

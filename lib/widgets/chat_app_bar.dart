@@ -16,7 +16,12 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
       title: Consumer<ChatProvider>(
         builder: (context, chatProvider, child) {
           // For direct chat, show the other participant's name and avatar
@@ -49,10 +54,8 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                     children: [
                       Text(
                         otherParticipantName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (otherUser != null)
@@ -62,10 +65,8 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
                               : otherUser.lastSeen != null
                               ? 'Last seen ${Utils.formatRelativeTime(otherUser.lastSeen!)}'
                               : 'Offline',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white70,
-                          ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                     ],
                   ),
@@ -81,23 +82,22 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               children: [
                 Text(
                   conversation.title ?? AppStrings.groupChat,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   '$memberCount members',
-                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             );
           }
         },
       ),
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
       actions: [
         // Clear reply button (if replying)
         Consumer<ChatProvider>(
@@ -106,7 +106,7 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
               return const SizedBox.shrink();
             }
             return IconButton(
-              icon: const Icon(Icons.clear),
+              icon: const Icon(Icons.clear_rounded),
               onPressed: () {
                 chatProvider.clearReplyToMessage(conversation.id);
               },
@@ -118,8 +118,12 @@ class ChatAppBar extends StatelessWidget implements PreferredSizeWidget {
         Consumer<ChatProvider>(
           builder: (context, chatProvider, child) {
             return Icon(
-              chatProvider.isConnected ? Icons.wifi : Icons.wifi_off,
-              color: chatProvider.isConnected ? Colors.white : Colors.red,
+              chatProvider.isConnected
+                  ? Icons.wifi_rounded
+                  : Icons.wifi_off_rounded,
+              color: chatProvider.isConnected
+                  ? colorScheme.primary
+                  : colorScheme.error,
             );
           },
         ),

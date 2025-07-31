@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 import 'providers/chat_provider.dart';
 import 'providers/friend_provider.dart';
 import 'providers/payment_provider.dart';
@@ -27,12 +28,17 @@ class MainApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (context) => PaymentProvider()),
       ],
-      child: MaterialApp(
-        title: AppStrings.appName,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        home: const AuthWrapper(),
-        debugShowCheckedModeBanner: false,
+      child: DynamicColorBuilder(
+        builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+          return MaterialApp(
+            title: AppStrings.appName,
+            theme: AppTheme.lightTheme(lightDynamic),
+            darkTheme: AppTheme.darkTheme(darkDynamic),
+            themeMode: ThemeMode.system,
+            home: const AuthWrapper(),
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }

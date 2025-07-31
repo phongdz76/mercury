@@ -272,47 +272,49 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   void _showAttachmentOptions() {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (BuildContext context) {
         return Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 AppStrings.selectAttachment,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
 
               // File size limit info
               const CompactFileUploadLimitInfo(),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildAttachmentOption(
-                    icon: Icons.photo,
+                    icon: Icons.photo_rounded,
                     label: 'Gallery',
-                    color: Colors.blue,
                     onTap: () {
                       Navigator.pop(context);
                       _pickImage();
                     },
                   ),
                   _buildAttachmentOption(
-                    icon: Icons.camera_alt,
+                    icon: Icons.camera_alt_rounded,
                     label: 'Camera',
-                    color: Colors.green,
                     onTap: () {
                       Navigator.pop(context);
                       _pickImageFromCamera();
                     },
                   ),
                   _buildAttachmentOption(
-                    icon: Icons.videocam,
+                    icon: Icons.videocam_rounded,
                     label: 'Video',
-                    color: Colors.purple,
                     onTap: () {
                       Navigator.pop(context);
                       _pickVideo();
@@ -320,23 +322,21 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _buildAttachmentOption(
-                    icon: Icons.video_camera_back,
+                    icon: Icons.video_camera_back_rounded,
                     label: 'Record',
-                    color: Colors.red,
                     onTap: () {
                       Navigator.pop(context);
                       _pickVideoFromCamera();
                     },
                   ),
                   _buildAttachmentOption(
-                    icon: Icons.attach_file,
+                    icon: Icons.attach_file_rounded,
                     label: 'File',
-                    color: Colors.orange,
                     onTap: () {
                       Navigator.pop(context);
                       _pickFile();
@@ -355,9 +355,10 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
   Widget _buildAttachmentOption({
     required IconData icon,
     required String label,
-    required Color color,
     required VoidCallback onTap,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -366,18 +367,16 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: colorScheme.primaryContainer,
               shape: BoxShape.circle,
-              border: Border.all(color: color.withOpacity(0.3)),
             ),
-            child: Icon(icon, color: color, size: 28),
+            child: Icon(icon, color: colorScheme.onPrimaryContainer, size: 28),
           ),
           const SizedBox(height: 8),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -388,11 +387,13 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        border: Border(top: BorderSide(color: Colors.grey[300]!)),
+        color: colorScheme.surface,
+        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
       ),
       child: Column(
         children: [
@@ -405,16 +406,22 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
           // Upload progress indicator
           if (widget.isUploading)
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(width: 12),
-                  const Text('Uploading...'),
+                  Text(
+                    'Uploading...',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
                 ],
               ),
             ),
@@ -424,18 +431,23 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
             children: [
               IconButton(
                 onPressed: widget.isUploading ? null : _showAttachmentOptions,
-                icon: const Icon(Icons.attach_file),
-                color: Colors.blue,
+                icon: const Icon(Icons.attach_file_rounded),
+                color: colorScheme.primary,
               ),
               Expanded(
                 child: TextField(
                   controller: widget.messageController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: AppStrings.typeMessage,
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    fillColor: colorScheme.surfaceVariant,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
                     ),
                   ),
                   onChanged: widget.onTyping,
@@ -444,11 +456,12 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                   enabled: !widget.isUploading,
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
+              const SizedBox(width: 12),
+              FloatingActionButton.small(
                 onPressed: widget.isUploading ? null : widget.onSendMessage,
-                icon: const Icon(Icons.send),
-                color: Colors.blue,
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                child: const Icon(Icons.send_rounded),
               ),
             ],
           ),

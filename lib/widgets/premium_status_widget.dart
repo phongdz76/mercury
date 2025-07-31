@@ -36,15 +36,11 @@ class PremiumStatusWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.amber, Colors.orange],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Theme.of(context).colorScheme.tertiaryContainer,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.amber.withOpacity(0.3),
+            color: Theme.of(context).colorScheme.tertiary.withOpacity(0.3),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -53,12 +49,16 @@ class PremiumStatusWidget extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star, color: Colors.white, size: 16),
+          Icon(
+            Icons.star,
+            color: Theme.of(context).colorScheme.onTertiaryContainer,
+            size: 16,
+          ),
           const SizedBox(width: 4),
-          const Text(
+          Text(
             'Premium',
             style: TextStyle(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.onTertiaryContainer,
               fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
@@ -75,14 +75,9 @@ class PremiumStatusWidget extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primary.withOpacity(0.1),
-              AppColors.primary.withOpacity(0.05),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: Theme.of(
+            context,
+          ).colorScheme.tertiaryContainer.withOpacity(0.3),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -93,17 +88,21 @@ class PremiumStatusWidget extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.tertiaryContainer,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.star, color: Colors.amber, size: 24),
+                  child: Icon(
+                    Icons.star,
+                    color: Theme.of(context).colorScheme.onTertiaryContainer,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Upgrade to Premium',
                         style: TextStyle(
                           fontSize: 18,
@@ -112,7 +111,10 @@ class PremiumStatusWidget extends StatelessWidget {
                       ),
                       Text(
                         'Unlock unlimited features',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -136,8 +138,8 @@ class PremiumStatusWidget extends StatelessWidget {
                     onUpgradePressed ??
                     () => _navigateToPremiumPurchase(context),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.tertiary,
+                  foregroundColor: Theme.of(context).colorScheme.onTertiary,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -160,20 +162,19 @@ class PremiumStatusWidget extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.amber.withOpacity(0.1),
-            Colors.orange.withOpacity(0.1),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: Theme.of(context).colorScheme.tertiaryContainer.withOpacity(0.5),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.amber.withOpacity(0.3)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.tertiary.withOpacity(0.3),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.star, color: Colors.amber, size: 20),
+          Icon(
+            Icons.star,
+            color: Theme.of(context).colorScheme.tertiary,
+            size: 20,
+          ),
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
@@ -184,9 +185,13 @@ class PremiumStatusWidget extends StatelessWidget {
           TextButton(
             onPressed:
                 onUpgradePressed ?? () => _navigateToPremiumPurchase(context),
-            child: const Text(
+            child: Text(
               'Upgrade',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.tertiary,
+              ),
             ),
           ),
         ],
@@ -195,20 +200,29 @@ class PremiumStatusWidget extends StatelessWidget {
   }
 
   Widget _buildFeaturePreview(String feature, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: AppColors.primary),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              feature,
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+    return Builder(
+      builder: (context) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: Theme.of(context).colorScheme.tertiary),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                feature,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
             ),
-          ),
-          const Icon(Icons.check, size: 16, color: Colors.green),
-        ],
+            Icon(
+              Icons.check,
+              size: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ],
+        ),
       ),
     );
   }

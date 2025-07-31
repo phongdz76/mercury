@@ -67,7 +67,12 @@ class _FriendsScreenState extends State<FriendsScreen>
                       ),
                     ),
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.grey.shade100,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceVariant,
+                      foregroundColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurfaceVariant,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -77,7 +82,7 @@ class _FriendsScreenState extends State<FriendsScreen>
                   PopupMenuButton<String>(
                     icon: Icon(
                       Icons.more_vert_rounded,
-                      color: Theme.of(context).primaryColor,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -134,18 +139,20 @@ class _FriendsScreenState extends State<FriendsScreen>
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: Theme.of(context).colorScheme.surfaceVariant,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: TabBar(
                 controller: _tabController,
                 indicatorSize: TabBarIndicatorSize.tab,
                 indicator: BoxDecoration(
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).colorScheme.primary,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey.shade600,
+                labelColor: Theme.of(context).colorScheme.onPrimary,
+                unselectedLabelColor: Theme.of(
+                  context,
+                ).colorScheme.onSurfaceVariant,
                 labelStyle: const TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
@@ -222,7 +229,14 @@ class _FriendsScreenState extends State<FriendsScreen>
             itemCount: friendProvider.friends.length,
             itemBuilder: (context, index) {
               final friend = friendProvider.friends[index];
-              return _buildFriendTile(friend);
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _buildFriendTile(friend),
+              );
             },
           ),
         );
@@ -256,7 +270,14 @@ class _FriendsScreenState extends State<FriendsScreen>
             itemCount: friendProvider.pendingRequests.length,
             itemBuilder: (context, index) {
               final request = friendProvider.pendingRequests[index];
-              return _buildRequestTile(request);
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _buildRequestTile(request),
+              );
             },
           ),
         );
@@ -290,7 +311,14 @@ class _FriendsScreenState extends State<FriendsScreen>
             itemCount: friendProvider.sentRequests.length,
             itemBuilder: (context, index) {
               final request = friendProvider.sentRequests[index];
-              return _buildSentRequestTile(request);
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _buildSentRequestTile(request),
+              );
             },
           ),
         );
@@ -299,6 +327,8 @@ class _FriendsScreenState extends State<FriendsScreen>
   }
 
   Widget _buildFriendTile(FriendUser friend) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ListTile(
       leading: CircleAvatar(
         backgroundImage: friend.avatar != null
@@ -310,6 +340,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       ),
       title: Text(friend.username),
       subtitle: Text(friend.fullName ?? friend.email),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -317,33 +348,39 @@ class _FriendsScreenState extends State<FriendsScreen>
             Container(
               width: 12,
               height: 12,
-              decoration: const BoxDecoration(
-                color: Colors.green,
+              decoration: BoxDecoration(
+                color: colorScheme.tertiary,
                 shape: BoxShape.circle,
               ),
             ),
           PopupMenuButton<String>(
             onSelected: (value) => _handleFriendAction(value, friend),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'message',
                 child: ListTile(
-                  leading: Icon(Icons.message),
-                  title: Text('Message'),
+                  leading: const Icon(Icons.message_rounded),
+                  title: const Text('Message'),
+                  contentPadding: EdgeInsets.zero,
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'remove',
                 child: ListTile(
-                  leading: Icon(Icons.person_remove),
-                  title: Text('Remove Friend'),
+                  leading: const Icon(Icons.person_remove_rounded),
+                  title: const Text('Remove Friend'),
+                  contentPadding: EdgeInsets.zero,
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'block',
                 child: ListTile(
-                  leading: Icon(Icons.block),
-                  title: Text('Block User'),
+                  leading: const Icon(Icons.block_rounded),
+                  title: const Text('Block User'),
+                  contentPadding: EdgeInsets.zero,
                 ),
               ),
             ],
@@ -368,14 +405,16 @@ class _FriendsScreenState extends State<FriendsScreen>
       ),
       title: Text(requester.username),
       subtitle: Text(requester.fullName ?? requester.email),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextButton(
+          FilledButton.tonal(
             onPressed: () => _acceptRequest(request.id),
             child: const Text('Accept'),
           ),
-          TextButton(
+          const SizedBox(width: 8),
+          OutlinedButton(
             onPressed: () => _rejectRequest(request.id),
             child: const Text('Reject'),
           ),
@@ -399,7 +438,8 @@ class _FriendsScreenState extends State<FriendsScreen>
       ),
       title: Text(addressee.username),
       subtitle: Text(addressee.fullName ?? addressee.email),
-      trailing: TextButton(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      trailing: OutlinedButton(
         onPressed: () => _cancelRequest(request.id),
         child: const Text('Cancel'),
       ),

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/payment.dart';
 import '../providers/payment_provider.dart';
-import '../constants/app_theme.dart';
 
 class PremiumPurchaseScreen extends StatefulWidget {
   const PremiumPurchaseScreen({super.key});
@@ -34,8 +33,9 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Premium Subscription'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       body: Consumer<PaymentProvider>(
         builder: (context, paymentProvider, child) {
@@ -76,33 +76,39 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
   }
 
   Widget _buildPremiumHeader() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+          colors: [
+            colorScheme.primaryContainer,
+            colorScheme.primaryContainer.withOpacity(0.8),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.star, color: Colors.amber, size: 32),
-          SizedBox(height: 8),
+          Icon(Icons.star_rounded, color: colorScheme.primary, size: 32),
+          const SizedBox(height: 12),
           Text(
             'Upgrade to Premium',
-            style: TextStyle(
-              fontSize: 24,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: colorScheme.onPrimaryContainer,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             'Unlock all premium features and enhance your chat experience',
-            style: TextStyle(fontSize: 16, color: Colors.white70),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: colorScheme.onPrimaryContainer.withOpacity(0.8),
+            ),
           ),
         ],
       ),
@@ -112,27 +118,27 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
   Widget _buildPremiumFeatures() {
     final features = [
       {
-        'icon': Icons.history,
+        'icon': Icons.history_rounded,
         'title': 'Unlimited Message History',
         'description': 'Access all your messages anytime',
       },
       {
-        'icon': Icons.attach_file,
+        'icon': Icons.attach_file_rounded,
         'title': 'Large File Sharing',
         'description': 'Share files up to 100MB',
       },
       {
-        'icon': Icons.video_call,
+        'icon': Icons.video_call_rounded,
         'title': 'HD Video Calls',
         'description': 'Crystal clear video quality',
       },
       {
-        'icon': Icons.support_agent,
+        'icon': Icons.support_agent_rounded,
         'title': 'Priority Support',
         'description': '24/7 premium customer support',
       },
       {
-        'icon': Icons.palette,
+        'icon': Icons.palette_rounded,
         'title': 'Custom Themes',
         'description': 'Personalize your chat interface',
       },
@@ -141,9 +147,11 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Premium Features',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         ...features.map(
@@ -158,17 +166,19 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
   }
 
   Widget _buildFeatureItem(IconData icon, String title, String description) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 20),
+            child: Icon(icon, color: colorScheme.onPrimaryContainer, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -177,15 +187,16 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   description,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -199,9 +210,11 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Choose Your Plan',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         ...paymentProvider.premiumPlans.map(
@@ -212,6 +225,7 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
   }
 
   Widget _buildPlanCard(PremiumPlan plan, PaymentProvider paymentProvider) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isSelected = _selectedPlan?.id == plan.id;
     final savings = plan.id == 'yearly'
         ? paymentProvider.getYearlySavingsPercentage()
@@ -228,13 +242,13 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected ? AppColors.primary : Colors.grey[300]!,
+            color: isSelected ? colorScheme.primary : colorScheme.outline,
             width: isSelected ? 2 : 1,
           ),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           color: isSelected
-              ? AppColors.primary.withOpacity(0.05)
-              : Colors.white,
+              ? colorScheme.primaryContainer.withOpacity(0.3)
+              : colorScheme.surface,
         ),
         child: Row(
           children: [
@@ -246,7 +260,6 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
                   _selectedPlan = plan;
                 });
               },
-              activeColor: AppColors.primary,
             ),
             Expanded(
               child: Column(
@@ -256,29 +269,27 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
                     children: [
                       Text(
                         plan.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       if (plan.isPopular) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
+                            horizontal: 12,
+                            vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.orange,
-                            borderRadius: BorderRadius.circular(12),
+                            color: colorScheme.tertiaryContainer,
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Most Popular',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: colorScheme.onTertiaryContainer,
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                         ),
                       ],
@@ -287,15 +298,16 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
                   const SizedBox(height: 4),
                   Text(
                     plan.description,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   if (savings > 0) ...[
                     const SizedBox(height: 4),
                     Text(
                       'Save ${savings.toStringAsFixed(0)}%',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.green,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.tertiary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -308,15 +320,16 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
               children: [
                 Text(
                   paymentProvider.formatCurrency(plan.price, plan.currency),
-                  style: const TextStyle(
-                    fontSize: 20,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                    color: colorScheme.primary,
                   ),
                 ),
                 Text(
                   '/${plan.durationInDays} days',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -327,25 +340,26 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
   }
 
   Widget _buildPurchaseButton(PaymentProvider paymentProvider) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isLoading = _isProcessing || paymentProvider.isLoading;
     final canPurchase = _selectedPlan != null && !isLoading;
 
     return SizedBox(
       width: double.infinity,
-      child: ElevatedButton(
+      child: FilledButton(
         onPressed: canPurchase ? () => _handlePurchase(paymentProvider) : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
+        style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
-                  color: Colors.white,
+                  color: colorScheme.onPrimary,
                   strokeWidth: 2,
                 ),
               )
@@ -353,21 +367,25 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
                 _selectedPlan != null
                     ? 'Purchase ${paymentProvider.formatCurrency(_selectedPlan!.price, _selectedPlan!.currency)}'
                     : 'Select a Plan',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                //on text color
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
       ),
     );
   }
 
   Widget _buildTermsAndConditions() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
-        const Text(
+        Text(
           'By purchasing, you agree to our Terms of Service and Privacy Policy.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
@@ -378,19 +396,28 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
               onPressed: () {
                 // Open Terms of Service
               },
-              child: const Text(
+              child: Text(
                 'Terms of Service',
-                style: TextStyle(fontSize: 12),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colorScheme.primary),
               ),
             ),
-            const Text(' • ', style: TextStyle(color: Colors.grey)),
+            Text(
+              ' • ',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
             TextButton(
               onPressed: () {
                 // Open Privacy Policy
               },
-              child: const Text(
+              child: Text(
                 'Privacy Policy',
-                style: TextStyle(fontSize: 12),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colorScheme.primary),
               ),
             ),
           ],
@@ -400,25 +427,34 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
   }
 
   Widget _buildErrorMessage(String error) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.red[50],
-        border: Border.all(color: Colors.red[300]!),
-        borderRadius: BorderRadius.circular(8),
+        color: colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error, color: Colors.red),
-          const SizedBox(width: 8),
+          Icon(Icons.error_rounded, color: colorScheme.onErrorContainer),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(error, style: const TextStyle(color: Colors.red)),
+            child: Text(
+              error,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onErrorContainer,
+              ),
+            ),
           ),
           IconButton(
             onPressed: () {
               Provider.of<PaymentProvider>(context, listen: false).clearError();
             },
-            icon: const Icon(Icons.close, color: Colors.red),
+            icon: Icon(
+              Icons.close_rounded,
+              color: colorScheme.onErrorContainer,
+            ),
           ),
         ],
       ),
@@ -513,15 +549,11 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
               },
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () async {
                 Navigator.of(context).pop();
                 await _openPaymentUrl(response.payUrl!);
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-              ),
               child: const Text('Pay with MoMo'),
             ),
           ],
@@ -653,10 +685,7 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
                 Navigator.of(context).pop();
                 _showPaymentInProgressDialog();
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-              ),
+              style: FilledButton.styleFrom(),
               child: const Text('I\'ve Opened the Link'),
             ),
           ],
@@ -666,25 +695,29 @@ class _PremiumPurchaseScreenState extends State<PremiumPurchaseScreen> {
   }
 
   void _showPaymentInProgressDialog() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Payment in Progress'),
-          content: const Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.payment, size: 48, color: AppColors.primary),
-              SizedBox(height: 16),
-              Text(
+              Icon(Icons.payment_rounded, size: 48, color: colorScheme.primary),
+              const SizedBox(height: 16),
+              const Text(
                 'Complete your payment in the MoMo app.',
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 'Your premium subscription will be activated automatically after successful payment.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

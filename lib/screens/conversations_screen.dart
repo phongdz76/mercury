@@ -59,7 +59,9 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           .requestConversationListRefresh();
                     },
                     style: IconButton.styleFrom(
-                      backgroundColor: Colors.grey.shade100,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceVariant,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -78,8 +80,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                       );
                     },
                     style: IconButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -104,7 +106,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           Icon(
                             Icons.error_outline_rounded,
                             size: 64,
-                            color: Colors.grey.shade400,
+                            color: Theme.of(context).colorScheme.outline,
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -115,7 +117,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           const SizedBox(height: 8),
                           Text(
                             chatProvider.error!,
-                            style: TextStyle(color: Colors.grey.shade600),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 24),
@@ -153,7 +159,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                                 Icon(
                                   Icons.chat_bubble_outline_rounded,
                                   size: 64,
-                                  color: Colors.grey.shade400,
+                                  color: Theme.of(context).colorScheme.outline,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
@@ -164,7 +170,11 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                                 const SizedBox(height: 8),
                                 Text(
                                   'Start a conversation with your friends',
-                                  style: TextStyle(color: Colors.grey.shade600),
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ],
                             ),
@@ -213,8 +223,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                             ? Icons.wifi_rounded
                             : Icons.wifi_off_rounded,
                         color: chatProvider.isConnected
-                            ? Colors.green
-                            : Colors.orange,
+                            ? Theme.of(context).colorScheme.tertiary
+                            : Theme.of(context).colorScheme.secondary,
                         size: 16,
                       ),
                       const SizedBox(width: 8),
@@ -224,8 +234,8 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                             : 'Reconnecting...',
                         style: TextStyle(
                           color: chatProvider.isConnected
-                              ? Colors.green
-                              : Colors.orange,
+                              ? Theme.of(context).colorScheme.tertiary
+                              : Theme.of(context).colorScheme.secondary,
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -258,7 +268,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             return Card(
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Colors.grey.shade300,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
                   child: const CircularProgressIndicator(strokeWidth: 2),
                 ),
                 title: const Text('Loading...'),
@@ -295,9 +305,12 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         width: 14,
                         height: 14,
                         decoration: BoxDecoration(
-                          color: Colors.green,
+                          color: Theme.of(context).colorScheme.tertiary,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.surface,
+                            width: 2,
+                          ),
                         ),
                       ),
                     ),
@@ -317,7 +330,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   ),
                   Text(
                     Utils.formatDate(conversation.lastActivity),
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -329,7 +345,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     Text(
                       conversation.lastMessage!,
                       style: TextStyle(
-                        color: Colors.grey.shade700,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 14,
                       ),
                       maxLines: 1,
@@ -339,7 +355,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                     Text(
                       'No messages yet',
                       style: TextStyle(
-                        color: Colors.grey.shade500,
+                        color: Theme.of(context).colorScheme.outline,
                         fontSize: 14,
                       ),
                     ),
@@ -347,15 +363,18 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                   Row(
                     children: [
                       if (user?.isOnline == true)
-                        const Text(
+                        Text(
                           'Online',
-                          style: TextStyle(color: Colors.green, fontSize: 12),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.tertiary,
+                            fontSize: 12,
+                          ),
                         )
                       else if (user?.lastSeen != null)
                         Text(
                           'Last seen ${Utils.formatTime(user!.lastSeen!)}',
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: Theme.of(context).colorScheme.outline,
                             fontSize: 12,
                           ),
                         )
@@ -363,7 +382,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         Text(
                           'Offline',
                           style: TextStyle(
-                            color: Colors.grey.shade500,
+                            color: Theme.of(context).colorScheme.outline,
                             fontSize: 12,
                           ),
                         ),
@@ -377,7 +396,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                             Icon(
                               Icons.volume_off_rounded,
                               size: 16,
-                              color: Colors.grey.shade500,
+                              color: Theme.of(context).colorScheme.outline,
                             ),
                           if (conversation.isMuted &&
                               conversation.unreadCount > 0)
@@ -391,16 +410,18 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                               ),
                               decoration: BoxDecoration(
                                 color: conversation.isMuted
-                                    ? Colors.grey.shade400
-                                    : Theme.of(context).primaryColor,
+                                    ? Theme.of(context).colorScheme.outline
+                                    : Theme.of(context).colorScheme.primary,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
                                 conversation.unreadCount > 99
                                     ? '99+'
                                     : conversation.unreadCount.toString(),
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: conversation.isMuted
+                                      ? Theme.of(context).colorScheme.onSurface
+                                      : Theme.of(context).colorScheme.onPrimary,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -442,14 +463,14 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
             vertical: 8,
           ),
           leading: CircleAvatar(
-            backgroundColor: Theme.of(context).primaryColor,
+            backgroundColor: Theme.of(context).colorScheme.primaryContainer,
             radius: 28,
             child: Text(
               conversation.title?.isNotEmpty == true
                   ? conversation.title![0].toUpperCase()
                   : 'G',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onPrimaryContainer,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -468,7 +489,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               ),
               Text(
                 Utils.formatDate(conversation.lastActivity),
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -479,21 +503,30 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               if (conversation.lastMessage != null)
                 Text(
                   conversation.lastMessage!,
-                  style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 14,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 )
               else
                 Text(
                   'No messages yet',
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.outline,
+                    fontSize: 14,
+                  ),
                 ),
               const SizedBox(height: 4),
               Row(
                 children: [
                   Text(
                     '${conversation.participants.length} members',
-                    style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.outline,
+                      fontSize: 12,
+                    ),
                   ),
                   const Spacer(),
                   // Indicators
@@ -505,7 +538,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                         Icon(
                           Icons.volume_off_rounded,
                           size: 16,
-                          color: Colors.grey.shade500,
+                          color: Theme.of(context).colorScheme.outline,
                         ),
                       if (conversation.isMuted && conversation.unreadCount > 0)
                         const SizedBox(width: 4),
@@ -518,16 +551,18 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: conversation.isMuted
-                                ? Colors.grey.shade400
-                                : Theme.of(context).primaryColor,
+                                ? Theme.of(context).colorScheme.outline
+                                : Theme.of(context).colorScheme.primary,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             conversation.unreadCount > 99
                                 ? '99+'
                                 : conversation.unreadCount.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: conversation.isMuted
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : Theme.of(context).colorScheme.onPrimary,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
@@ -579,7 +614,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -597,7 +632,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               ListTile(
                 leading: Icon(
                   Icons.mark_chat_read_rounded,
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).colorScheme.tertiary,
                 ),
                 title: const Text('Mark as read'),
                 onTap: () {
@@ -612,7 +647,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
               ListTile(
                 leading: Icon(
                   Icons.mark_chat_unread_rounded,
-                  color: Theme.of(context).primaryColor,
+                  color: Theme.of(context).colorScheme.tertiary,
                 ),
                 title: const Text('Mark as unread'),
                 onTap: () {
@@ -630,7 +665,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 conversation.isMuted
                     ? Icons.volume_up_rounded
                     : Icons.volume_off_rounded,
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).colorScheme.tertiary,
               ),
               title: Text(conversation.isMuted ? 'Unmute' : 'Mute'),
               onTap: () {
@@ -651,7 +686,7 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 conversation.isArchived
                     ? Icons.unarchive_rounded
                     : Icons.archive_rounded,
-                color: Theme.of(context).primaryColor,
+                color: Theme.of(context).colorScheme.tertiary,
               ),
               title: Text(conversation.isArchived ? 'Unarchive' : 'Archive'),
               onTap: () {
@@ -668,10 +703,13 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
 
             // Delete conversation
             ListTile(
-              leading: const Icon(Icons.delete_rounded, color: Colors.red),
-              title: const Text(
+              leading: Icon(
+                Icons.delete_rounded,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              title: Text(
                 'Delete conversation',
-                style: TextStyle(color: Colors.red),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -721,7 +759,10 @@ class _ConversationsScreenState extends State<ConversationsScreen> {
                 ),
               );
             },
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             child: const Text('Delete'),
           ),
         ],
