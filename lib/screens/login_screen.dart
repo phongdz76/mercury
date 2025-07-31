@@ -4,7 +4,7 @@ import '../providers/chat_provider.dart';
 import '../services/api_service.dart';
 import '../constants/app_constants.dart';
 import '../utils/utils.dart';
-import 'conversations_screen.dart';
+import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
         await context.read<ChatProvider>().initialize();
 
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const ConversationsScreen()),
+          MaterialPageRoute(builder: (context) => const MainScreen()),
         );
       }
     } catch (e) {

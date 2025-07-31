@@ -4,7 +4,7 @@ import 'providers/chat_provider.dart';
 import 'providers/friend_provider.dart';
 import 'providers/payment_provider.dart';
 import 'screens/login_screen.dart';
-import 'screens/conversations_screen.dart';
+import 'screens/main_screen.dart';
 import 'services/api_service.dart';
 import 'services/websocket_service.dart';
 import 'constants/app_theme.dart';
@@ -53,7 +53,7 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData && snapshot.data != null) {
-          return const ConversationsScreen();
+          return const MainScreen();
         }
 
         return const LoginScreen();

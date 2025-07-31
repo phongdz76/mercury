@@ -43,63 +43,138 @@ class _FriendsScreenState extends State<FriendsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Friends'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: 'Friends'),
-            Tab(text: 'Requests'),
-            Tab(text: 'Sent'),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const FriendSearchScreen(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header with title and actions
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Friends',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.search_rounded),
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const FriendSearchScreen(),
+                      ),
+                    ),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.grey.shade100,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onSelected: (String value) {
+                      switch (value) {
+                        case 'blocked':
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const BlockedUsersScreen(),
+                            ),
+                          );
+                          break;
+                        case 'requests':
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const FriendRequestsScreen(),
+                            ),
+                          );
+                          break;
+                      }
+                    },
+                    itemBuilder: (BuildContext context) =>
+                        <PopupMenuEntry<String>>[
+                          const PopupMenuItem<String>(
+                            value: 'blocked',
+                            child: Row(
+                              children: [
+                                Icon(Icons.block_rounded, size: 20),
+                                SizedBox(width: 12),
+                                Text('Blocked Users'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'requests',
+                            child: Row(
+                              children: [
+                                Icon(Icons.person_add_rounded, size: 20),
+                                SizedBox(width: 12),
+                                Text('Friend Requests'),
+                              ],
+                            ),
+                          ),
+                        ],
+                  ),
+                ],
               ),
             ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (String value) {
-              switch (value) {
-                case 'blocked':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BlockedUsersScreen(),
-                    ),
-                  );
-                  break;
-                case 'requests':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const FriendRequestsScreen(),
-                    ),
-                  );
-                  break;
-              }
-            },
-            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-              const PopupMenuItem<String>(
-                value: 'blocked',
-                child: Text('Blocked Users'),
+            // Tab bar
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(16),
               ),
-              const PopupMenuItem<String>(
-                value: 'requests',
-                child: Text('Friend Requests'),
+              child: TabBar(
+                controller: _tabController,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.grey.shade600,
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+                tabs: const [
+                  Tab(text: 'Friends'),
+                  Tab(text: 'Requests'),
+                  Tab(text: 'Sent'),
+                ],
               ),
-            ],
-          ),
-        ],
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [_buildFriendsTab(), _buildRequestsTab(), _buildSentTab()],
+            ),
+            const SizedBox(height: 16),
+            // Content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildFriendsTab(),
+                  _buildRequestsTab(),
+                  _buildSentTab(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
