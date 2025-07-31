@@ -102,6 +102,18 @@ class ChatProvider extends ChangeNotifier {
       final conversationId = event.conversationId;
 
       if (conversationId != null) {
+        // Validate message before processing
+        if (!_isValidMessage(message)) {
+          print(
+            'Invalid message received, skipping: ${message.id}, content: "${message.content}", sender: ${message.sender}, type: ${message.type}',
+          );
+          return;
+        }
+
+        print(
+          'Processing valid message: ${message.id}, content: "${message.content}", sender: ${message.sender}',
+        );
+
         // Add message to messages list
         if (!_messages.containsKey(conversationId)) {
           _messages[conversationId] = [];
@@ -136,6 +148,46 @@ class ChatProvider extends ChangeNotifier {
     } catch (e) {
       print('Error handling new message: $e');
     }
+  }
+
+  // Helper method to validate if a message is valid
+  bool _isValidMessage(Message message) {
+    // Check if message has valid ID
+    if (message.id.isEmpty) {
+      return false;
+    }
+
+    // Check if message has valid sender
+    if (message.sender.isEmpty) {
+      return false;
+    }
+
+    // Check if message content is not empty for text messages
+    if (message.type == 'text' && message.content.trim().isEmpty) {
+      return false;
+    }
+
+    // Check if message is not deleted
+    if (message.isDeleted) {
+      return false;
+    }
+
+    return true;
+  }
+
+  // Debug method to check messages in a conversation
+  void debugConversationMessages(String conversationId) {
+    final messages = _messages[conversationId] ?? [];
+    print('=== Debug Messages for Conversation $conversationId ===');
+    print('Total messages: ${messages.length}');
+
+    for (int i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      print(
+        '[$i] ID: ${msg.id}, Sender: ${msg.sender}, Content: "${msg.content}", Type: ${msg.type}, Time: ${msg.createdAt}',
+      );
+    }
+    print('=== End Debug Messages ===');
   }
 
   void _handleTyping(WebSocketEvent event) {
@@ -647,10 +699,15 @@ class ChatProvider extends ChangeNotifier {
       _setLoading(true);
       final messages = await ApiService.getMessages(conversationId);
 
-      // Sort messages by creation time to ensure proper order
-      messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      // Filter out invalid messages before processing
+      final validMessages = messages
+          .where((message) => _isValidMessage(message))
+          .toList();
 
-      _messages[conversationId] = messages;
+      // Sort messages by creation time to ensure proper order
+      validMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      _messages[conversationId] = validMessages;
 
       // Preload user information for conversation participants and message senders
       await preloadConversationUsers(conversationId);
@@ -672,10 +729,15 @@ class ChatProvider extends ChangeNotifier {
       _setLoading(true);
       final messages = await ApiService.getMessages(conversationId);
 
-      // Sort messages by creation time to ensure proper order
-      messages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      // Filter out invalid messages before processing
+      final validMessages = messages
+          .where((message) => _isValidMessage(message))
+          .toList();
 
-      _messages[conversationId] = messages;
+      // Sort messages by creation time to ensure proper order
+      validMessages.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+      _messages[conversationId] = validMessages;
       notifyListeners();
     } catch (e) {
       _error = 'Failed to reload messages: $e';
@@ -718,6 +780,11 @@ class ChatProvider extends ChangeNotifier {
     if (conversationIndex != -1) {
       final conversation = _conversations[conversationIndex];
 
+      // Only update if message is valid and not empty
+      if (!_isValidMessage(message)) {
+        return;
+      }
+
       // Format last message based on message type
       String lastMessage = message.content;
       if (message.type == 'image') {
@@ -730,6 +797,11 @@ class ChatProvider extends ChangeNotifier {
         lastMessage = '🎥 Video';
       } else if (message.type == 'location') {
         lastMessage = '📍 Location';
+      }
+
+      // For text messages, ensure content is not empty or just whitespace
+      if (message.type == 'text' && lastMessage.trim().isEmpty) {
+        return; // Don't update conversation with empty message
       }
 
       // Increment unread count if message is not from current user
