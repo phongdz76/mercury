@@ -890,7 +890,8 @@ class ChatProvider extends ChangeNotifier {
   Future<void> addPendingAttachment({
     required String conversationId,
     required File file,
-    required String type,
+    required String
+    type, // This is now just a hint, we'll use API response type
   }) async {
     try {
       _isLoading = true;
@@ -908,11 +909,15 @@ class ChatProvider extends ChangeNotifier {
       final fileSize = uploadResult['size'] as int;
       final mimeType = uploadResult['mimetype'] as String;
 
+      // Use the type from API response instead of frontend type
+      final apiType = uploadResult['type'] as String; // "VIDEO", "IMAGE", etc.
+
       // Create attachment data
       final attachment = {
         'name': fileName,
         'url': fileUrl,
-        'type': type.toUpperCase(), // FILE, IMAGE, etc.
+        'type': apiType
+            .toLowerCase(), // Convert to lowercase: "video", "image", etc.
         'size': fileSize,
         'mimeType': mimeType,
         'originalFile': file, // Keep reference to original file for preview
@@ -959,16 +964,29 @@ class ChatProvider extends ChangeNotifier {
         return clean;
       }).toList();
 
-      // Determine message type based on attachments
+      // Determine message type based on attachments from API response
       String messageType = 'text';
       if (cleanAttachments.isNotEmpty) {
         final firstAttachmentType = cleanAttachments.first['type']
             .toString()
             .toLowerCase();
-        if (firstAttachmentType.contains('image')) {
-          messageType = 'image';
-        } else {
-          messageType = 'file';
+
+        // Map API types to message types
+        switch (firstAttachmentType) {
+          case 'image':
+            messageType = 'image';
+            break;
+          case 'video':
+            messageType = 'file'; // Video is treated as file in message type
+            break;
+          case 'audio':
+            messageType = 'file'; // Audio is treated as file in message type
+            break;
+          case 'file':
+          case 'document':
+          default:
+            messageType = 'file';
+            break;
         }
       }
 

@@ -72,11 +72,27 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _sendMessage() {
     final content = _messageController.text.trim();
-    if (content.isNotEmpty) {
-      context.read<ChatProvider>().sendMessage(
-        conversationId: widget.conversation.id,
-        content: content,
-      );
+    final chatProvider = context.read<ChatProvider>();
+
+    // Check if there are pending attachments
+    final hasPendingAttachments = chatProvider.hasPendingAttachments(
+      widget.conversation.id,
+    );
+
+    if (content.isNotEmpty || hasPendingAttachments) {
+      if (hasPendingAttachments) {
+        // Send message with pending attachments
+        chatProvider.sendMessageWithPendingAttachments(
+          conversationId: widget.conversation.id,
+          content: content,
+        );
+      } else {
+        // Send normal text message
+        chatProvider.sendMessage(
+          conversationId: widget.conversation.id,
+          content: content,
+        );
+      }
       _messageController.clear();
       _scrollToBottom();
     }
@@ -121,31 +137,17 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       if (pickedFile != null) {
-        setState(() {
-          _isUploading = true;
-        });
-
-        final file = File(pickedFile.path);
-        await context.read<ChatProvider>().sendMessageWithFile(
-          conversationId: widget.conversation.id,
-          file: file,
-          type: ApiConstants.messageTypeImage,
-          caption: null,
+        await _sendFileWithOptionalCaption(
+          File(pickedFile.path),
+          ApiConstants.messageTypeImage,
+          'Send Image',
         );
-
-        setState(() {
-          _isUploading = false;
-        });
-        _scrollToBottom();
       }
     } catch (e) {
-      setState(() {
-        _isUploading = false;
-      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send image: $e'),
+            content: Text('Failed to pick image: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -163,31 +165,17 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       if (pickedFile != null) {
-        setState(() {
-          _isUploading = true;
-        });
-
-        final file = File(pickedFile.path);
-        await context.read<ChatProvider>().sendMessageWithFile(
-          conversationId: widget.conversation.id,
-          file: file,
-          type: ApiConstants.messageTypeImage,
-          caption: null,
+        await _sendFileWithOptionalCaption(
+          File(pickedFile.path),
+          ApiConstants.messageTypeImage,
+          'Send Photo',
         );
-
-        setState(() {
-          _isUploading = false;
-        });
-        _scrollToBottom();
       }
     } catch (e) {
-      setState(() {
-        _isUploading = false;
-      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send image: $e'),
+            content: Text('Failed to take photo: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -203,37 +191,111 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       if (result != null && result.files.isNotEmpty) {
-        final file = File(result.files.single.path!);
+        await _sendFileWithOptionalCaption(
+          File(result.files.single.path!),
+          ApiConstants.messageTypeFile,
+          'Send File',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick file: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
 
+  Future<void> _sendFileWithOptionalCaption(
+    File file,
+    String messageType,
+    String dialogTitle,
+  ) async {
+    final captionController = TextEditingController();
+    String? caption;
+
+    // Show dialog to optionally add caption
+    final shouldSend = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(dialogTitle),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('File: ${file.path.split('/').last}'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: captionController,
+                decoration: const InputDecoration(
+                  hintText: 'Add a caption (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                caption = captionController.text.trim();
+                Navigator.of(context).pop(true);
+              },
+              child: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldSend == true) {
+      try {
         setState(() {
           _isUploading = true;
         });
 
-        await context.read<ChatProvider>().sendMessageWithFile(
+        final chatProvider = context.read<ChatProvider>();
+
+        // First, add the file as pending attachment
+        await chatProvider.addPendingAttachment(
           conversationId: widget.conversation.id,
           file: file,
-          type: ApiConstants.messageTypeFile,
-          caption: null,
+          type: messageType,
+        );
+
+        // Then send the message with pending attachments and caption
+        await chatProvider.sendMessageWithPendingAttachments(
+          conversationId: widget.conversation.id,
+          content: caption ?? '',
         );
 
         setState(() {
           _isUploading = false;
         });
         _scrollToBottom();
-      }
-    } catch (e) {
-      setState(() {
-        _isUploading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send file: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+      } catch (e) {
+        setState(() {
+          _isUploading = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to send file: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
+
+    captionController.dispose();
   }
 
   void _showAttachmentOptions() {
@@ -460,6 +522,108 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 child: Column(
                   children: [
+                    // Pending attachments preview
+                    Consumer<ChatProvider>(
+                      builder: (context, chatProvider, child) {
+                        final pendingAttachments = chatProvider
+                            .getPendingAttachments(widget.conversation.id);
+                        if (pendingAttachments.isNotEmpty) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.attach_file,
+                                      size: 16,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${pendingAttachments.length} file(s) ready to send',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blue.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    InkWell(
+                                      onTap: () =>
+                                          chatProvider.clearPendingAttachments(
+                                            widget.conversation.id,
+                                          ),
+                                      child: Icon(
+                                        Icons.close,
+                                        size: 16,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                ...pendingAttachments.asMap().entries.map((
+                                  entry,
+                                ) {
+                                  final index = entry.key;
+                                  final attachment = entry.value;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          _getAttachmentIcon(
+                                            attachment['type']
+                                                    ?.toString()
+                                                    .toLowerCase() ??
+                                                'file',
+                                          ),
+                                          size: 14,
+                                          color: Colors.blue.shade600,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            attachment['name'] ??
+                                                'Unknown file',
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        InkWell(
+                                          onTap: () => chatProvider
+                                              .removePendingAttachment(
+                                                widget.conversation.id,
+                                                index,
+                                              ),
+                                          child: Icon(
+                                            Icons.remove_circle_outline,
+                                            size: 14,
+                                            color: Colors.red.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ],
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+
                     // Upload progress indicator
                     if (_isUploading)
                       Container(
@@ -786,7 +950,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Row(
             children: [
               Icon(
-                _getFileIcon(attachment?.name ?? ''),
+                _getFileIconByType(attachment),
                 color: isCurrentUser ? Colors.white : Colors.black54,
               ),
               const SizedBox(width: 12),
@@ -813,7 +977,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
               Icon(
-                Icons.download,
+                _shouldShowPlayIcon(attachment)
+                    ? Icons.play_circle_outline
+                    : Icons.download,
                 color: isCurrentUser ? Colors.white : Colors.black54,
               ),
             ],
@@ -860,6 +1026,61 @@ class _ChatScreenState extends State<ChatScreen> {
         return Icons.video_file;
       default:
         return Icons.insert_drive_file;
+    }
+  }
+
+  // New method to get icon based on attachment type from API
+  IconData _getFileIconByType(dynamic attachment) {
+    if (attachment == null) return Icons.insert_drive_file;
+
+    // Check if attachment has type field from API
+    final type =
+        attachment.type?.toLowerCase() ??
+        attachment['type']?.toString().toLowerCase();
+
+    if (type != null) {
+      switch (type) {
+        case 'video':
+          return Icons.video_file;
+        case 'audio':
+          return Icons.audio_file;
+        case 'image':
+          return Icons.image;
+        case 'document':
+          return Icons.description;
+        default:
+          break;
+      }
+    }
+
+    // Fallback to filename extension
+    final fileName = attachment.name ?? attachment['name']?.toString() ?? '';
+    return _getFileIcon(fileName);
+  }
+
+  // Check if should show play icon for video/audio files
+  bool _shouldShowPlayIcon(dynamic attachment) {
+    if (attachment == null) return false;
+
+    final type =
+        attachment.type?.toLowerCase() ??
+        attachment['type']?.toString().toLowerCase();
+
+    return type == 'video' || type == 'audio';
+  }
+
+  IconData _getAttachmentIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'image':
+        return Icons.image;
+      case 'video':
+        return Icons.video_file;
+      case 'audio':
+        return Icons.audio_file;
+      case 'document':
+      case 'file':
+      default:
+        return Icons.attach_file;
     }
   }
 

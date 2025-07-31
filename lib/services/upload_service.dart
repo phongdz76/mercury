@@ -118,8 +118,12 @@ class UploadService extends BaseService {
           'name':
               jsonResponse['data']['file']['name'] ?? file.path.split('/').last,
           'size': jsonResponse['data']['file']['size'] ?? fileLength,
-          'type': jsonResponse['data']['file']['type'] ?? 'FILE',
-          'mimetype': mimetype, // Add mimetype to response
+          'type':
+              jsonResponse['data']['file']['type'] ??
+              'file', // Use lowercase as fallback
+          'mimetype':
+              jsonResponse['data']['file']['mimeType'] ??
+              mimetype, // Map from API mimeType to mimetype
         };
       } else {
         throw Exception(
