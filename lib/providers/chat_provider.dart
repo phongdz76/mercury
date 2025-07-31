@@ -17,6 +17,8 @@ class ChatProvider extends ChangeNotifier {
   Map<String, User> _userCache = {}; // Add user cache
   Map<String, List<Map<String, dynamic>>> _pendingAttachments =
       {}; // Hold pending attachments
+  Map<String, Message?> _replyingToMessages =
+      {}; // Track reply state per conversation
   bool _isLoading = false;
   String? _error;
 
@@ -28,6 +30,8 @@ class ChatProvider extends ChangeNotifier {
   Map<String, User> get userCache => _userCache; // Add getter for user cache
   Map<String, List<Map<String, dynamic>>> get pendingAttachments =>
       _pendingAttachments; // Getter for pending attachments
+  Map<String, Message?> get replyingToMessages =>
+      _replyingToMessages; // Getter for reply state
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isConnected => _webSocketService.isConnected;
@@ -281,6 +285,9 @@ class ChatProvider extends ChangeNotifier {
 
         // Remove pending attachments
         _pendingAttachments.remove(conversationId);
+
+        // Remove reply state
+        _replyingToMessages.remove(conversationId);
 
         notifyListeners();
       }
@@ -595,6 +602,7 @@ class ChatProvider extends ChangeNotifier {
     _pendingAttachments.remove(
       conversationId,
     ); // Also clear pending attachments
+    _replyingToMessages.remove(conversationId); // Clear reply state
     notifyListeners();
   }
 
@@ -764,6 +772,7 @@ class ChatProvider extends ChangeNotifier {
     _pendingAttachments.remove(
       conversationId,
     ); // Also clear pending attachments
+    _replyingToMessages.remove(conversationId); // Clear reply state
     notifyListeners();
   }
 
@@ -780,6 +789,7 @@ class ChatProvider extends ChangeNotifier {
     _typingUsers.clear();
     _userCache.clear();
     _pendingAttachments.clear(); // Also clear pending attachments
+    _replyingToMessages.clear(); // Clear reply state
     _currentUser = null;
     _isLoading = false;
     _error = null;
@@ -845,13 +855,30 @@ class ChatProvider extends ChangeNotifier {
     String? replyTo,
   }) async {
     try {
+      // If replyTo is not provided, check if we're replying to a message in this conversation
+      String? finalReplyTo = replyTo;
+      if (finalReplyTo == null && isReplyingTo(conversationId)) {
+        finalReplyTo = getReplyToMessage(conversationId)?.id;
+        print('DEBUG: Auto-detected replyTo: $finalReplyTo');
+      } else if (finalReplyTo != null) {
+        print('DEBUG: Using provided replyTo: $finalReplyTo');
+      } else {
+        print('DEBUG: No reply state found for conversation: $conversationId');
+      }
+
       // Send via WebSocket only
       _webSocketService.sendMessage(
         conversationId: conversationId,
         content: content,
         type: type,
-        replyTo: replyTo,
+        replyTo: finalReplyTo,
       );
+
+      // Clear reply state if we used it
+      if (finalReplyTo != null && isReplyingTo(conversationId)) {
+        clearReplyToMessage(conversationId);
+        print('DEBUG: Cleared reply state for conversation: $conversationId');
+      }
     } catch (e) {
       _error = 'Failed to send message: $e';
       notifyListeners();
@@ -947,13 +974,24 @@ class ChatProvider extends ChangeNotifier {
     try {
       final attachments = _pendingAttachments[conversationId] ?? [];
 
+      // If replyTo is not provided, check if we're replying to a message in this conversation
+      String? finalReplyTo = replyTo;
+      if (finalReplyTo == null && isReplyingTo(conversationId)) {
+        finalReplyTo = getReplyToMessage(conversationId)?.id;
+      }
+
       if (attachments.isEmpty) {
-        // No attachments, send normal text message
+        // No attachments, send normal text message with optional reply
         await sendMessage(
           conversationId: conversationId,
           content: content,
-          replyTo: replyTo,
+          replyTo: finalReplyTo,
         );
+
+        // Clear reply state if we used it
+        if (finalReplyTo != null && isReplyingTo(conversationId)) {
+          clearReplyToMessage(conversationId);
+        }
         return;
       }
 
@@ -990,17 +1028,20 @@ class ChatProvider extends ChangeNotifier {
         }
       }
 
-      // Send message with attachments via WebSocket
+      // Send message with attachments and optional reply via WebSocket
       _webSocketService.sendMessage(
         conversationId: conversationId,
         content: content,
         type: messageType,
-        replyTo: replyTo,
+        replyTo: finalReplyTo,
         attachments: cleanAttachments,
       );
 
-      // Clear pending attachments after sending
+      // Clear pending attachments and reply state after sending
       _pendingAttachments.remove(conversationId);
+      if (finalReplyTo != null && isReplyingTo(conversationId)) {
+        clearReplyToMessage(conversationId);
+      }
       notifyListeners();
     } catch (e) {
       _error = 'Failed to send message: $e';
@@ -1375,6 +1416,200 @@ class ChatProvider extends ChangeNotifier {
       await getUser(senderId);
     }
   }
+
+  // ==================== REPLY TO MESSAGE METHODS ====================
+
+  // Set message to reply to for a conversation
+  void setReplyToMessage(String conversationId, Message message) {
+    _replyingToMessages[conversationId] = message;
+    print(
+      'DEBUG: Set reply to message: ${message.id} in conversation: $conversationId',
+    );
+    notifyListeners();
+  }
+
+  // Clear reply state for a conversation
+  void clearReplyToMessage(String conversationId) {
+    final removedMessage = _replyingToMessages.remove(conversationId);
+    print(
+      'DEBUG: Cleared reply to message: ${removedMessage?.id} from conversation: $conversationId',
+    );
+    notifyListeners();
+  }
+
+  // Get the message being replied to for a conversation
+  Message? getReplyToMessage(String conversationId) {
+    return _replyingToMessages[conversationId];
+  }
+
+  // Check if currently replying to a message in a conversation
+  bool isReplyingTo(String conversationId) {
+    return _replyingToMessages.containsKey(conversationId) &&
+        _replyingToMessages[conversationId] != null;
+  }
+
+  // Get replied message by ID (for displaying reply context)
+  Message? getRepliedMessage(String conversationId, String messageId) {
+    final messages = _messages[conversationId] ?? [];
+    try {
+      return messages.firstWhere((message) => message.id == messageId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Get reply chain depth (for nested replies)
+  int getReplyChainDepth(String conversationId, String messageId) {
+    int depth = 0;
+    String? currentMessageId = messageId;
+    final messages = _messages[conversationId] ?? [];
+
+    while (currentMessageId != null && depth < 10) {
+      // Prevent infinite loops
+      final message = messages
+          .where((m) => m.id == currentMessageId)
+          .firstOrNull;
+      if (message?.replyTo != null) {
+        depth++;
+        currentMessageId = message!.replyTo;
+      } else {
+        break;
+      }
+    }
+
+    return depth;
+  }
+
+  // Get the original message in a reply chain (root message)
+  Message? getOriginalMessage(String conversationId, String messageId) {
+    String? currentMessageId = messageId;
+    final messages = _messages[conversationId] ?? [];
+    Message? originalMessage;
+    int depth = 0;
+
+    while (currentMessageId != null && depth < 10) {
+      // Prevent infinite loops
+      final message = messages
+          .where((m) => m.id == currentMessageId)
+          .firstOrNull;
+      if (message != null) {
+        originalMessage = message;
+        if (message.replyTo != null) {
+          currentMessageId = message.replyTo;
+          depth++;
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+
+    return originalMessage;
+  }
+
+  // Get all replies to a specific message
+  List<Message> getRepliesToMessage(String conversationId, String messageId) {
+    final messages = _messages[conversationId] ?? [];
+    return messages.where((message) => message.replyTo == messageId).toList();
+  }
+
+  // Check if a message has replies
+  bool hasReplies(String conversationId, String messageId) {
+    final messages = _messages[conversationId] ?? [];
+    return messages.any((message) => message.replyTo == messageId);
+  }
+
+  // Get reply count for a message
+  int getReplyCount(String conversationId, String messageId) {
+    final messages = _messages[conversationId] ?? [];
+    return messages.where((message) => message.replyTo == messageId).length;
+  }
+
+  // Enhanced send message method with reply support
+  Future<void> sendReplyMessage({
+    required String conversationId,
+    required String content,
+    required String replyToMessageId,
+    String type = 'text',
+  }) async {
+    try {
+      // Send via WebSocket with reply
+      _webSocketService.sendMessage(
+        conversationId: conversationId,
+        content: content,
+        type: type,
+        replyTo: replyToMessageId,
+      );
+
+      // Clear reply state after sending
+      clearReplyToMessage(conversationId);
+    } catch (e) {
+      _error = 'Failed to send reply: $e';
+      notifyListeners();
+    }
+  }
+
+  // Enhanced send message with pending attachments and reply support
+  Future<void> sendMessageWithPendingAttachmentsAndReply({
+    required String conversationId,
+    required String content,
+    String? replyToMessageId,
+  }) async {
+    try {
+      final attachments = _pendingAttachments[conversationId] ?? [];
+
+      // Prepare attachments for WebSocket (remove originalFile)
+      final cleanAttachments = attachments.map((attachment) {
+        final clean = Map<String, dynamic>.from(attachment);
+        clean.remove('originalFile'); // Remove file reference
+        return clean;
+      }).toList();
+
+      // Determine message type based on attachments
+      String messageType = 'text';
+      if (cleanAttachments.isNotEmpty) {
+        final firstAttachmentType = cleanAttachments.first['type']
+            .toString()
+            .toLowerCase();
+
+        switch (firstAttachmentType) {
+          case 'image':
+            messageType = 'image';
+            break;
+          case 'video':
+          case 'audio':
+          case 'file':
+          case 'document':
+          default:
+            messageType = 'file';
+            break;
+        }
+      }
+
+      // Send message with attachments and optional reply via WebSocket
+      _webSocketService.sendMessage(
+        conversationId: conversationId,
+        content: content,
+        type: messageType,
+        replyTo: replyToMessageId,
+        attachments: cleanAttachments.isNotEmpty ? cleanAttachments : null,
+      );
+
+      // Clear pending attachments and reply state after sending
+      _pendingAttachments.remove(conversationId);
+      if (replyToMessageId != null) {
+        clearReplyToMessage(conversationId);
+      }
+
+      notifyListeners();
+    } catch (e) {
+      _error = 'Failed to send message: $e';
+      notifyListeners();
+    }
+  }
+
+  // ==================== END REPLY TO MESSAGE METHODS ====================
 
   @override
   void dispose() {

@@ -27,6 +27,9 @@ class ApiConstants {
   static const String messageTypeText = 'text';
   static const String messageTypeImage = 'image';
   static const String messageTypeFile = 'file';
+  static const String messageTypeVideo = 'video';
+  static const String messageTypeAudio = 'audio';
+  static const String messageTypeDocument = 'document';
   static const String messageTypeSystem = 'system';
 
   // Conversation Types
@@ -70,11 +73,14 @@ class AppStrings {
   static const String passwordChanged = 'Password changed successfully';
 
   // File upload strings
+  static const String selectAttachment = 'Select Attachment';
   static const String gallery = 'Gallery';
   static const String camera = 'Camera';
+  static const String video = 'Video';
+  static const String recordVideo = 'Record Video';
   static const String file = 'File';
   static const String uploadingFile = 'Uploading file...';
   static const String uploadingImage = 'Uploading image...';
+  static const String uploadingVideo = 'Uploading video...';
   static const String failedToUpload = 'Failed to upload';
-  static const String selectAttachment = 'Select attachment';
 }

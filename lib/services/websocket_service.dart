@@ -106,17 +106,24 @@ class WebSocketService {
 
     if (replyTo != null) {
       data['replyTo'] = replyTo;
+      print('DEBUG: Adding replyTo to message: $replyTo');
+    } else {
+      print('DEBUG: No replyTo provided');
     }
 
     if (attachments != null && attachments.isNotEmpty) {
       data['attachments'] = attachments;
     }
 
-    _send({
+    final message = {
       'type': 'send_message',
       'conversationId': conversationId,
       'data': data,
-    });
+    };
+
+    print('DEBUG: Sending WebSocket message: $message');
+
+    _send(message);
   }
 
   void sendTyping(String conversationId, bool isTyping) {
