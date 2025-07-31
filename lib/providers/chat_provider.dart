@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../models/conversation.dart';
 import '../models/message.dart';
 import '../models/websocket_event.dart';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
+import '../exceptions/file_size_exception.dart';
 
 class ChatProvider extends ChangeNotifier {
   final WebSocketService _webSocketService = WebSocketService();
@@ -928,6 +930,7 @@ class ChatProvider extends ChangeNotifier {
       final uploadResult = await ApiService.uploadMessageFile(
         file,
         conversationId,
+        currentUser: _currentUser,
       );
 
       // Extract file info from upload result
@@ -960,7 +963,14 @@ class ChatProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _isLoading = false;
-      _error = 'Failed to upload file: $e';
+      if (e is FileSizeException) {
+        _error = e.message;
+        // Note: We can't show dialog here because we don't have BuildContext
+        // The UI layer should handle this by checking for FileSizeException
+        rethrow;
+      } else {
+        _error = 'Failed to upload file: $e';
+      }
       notifyListeners();
     }
   }

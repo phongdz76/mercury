@@ -9,6 +9,8 @@ import '../utils/utils.dart';
 import '../screens/premium_purchase_screen.dart';
 import '../screens/payment_history_screen.dart';
 import '../widgets/premium_status_widget.dart';
+import '../exceptions/file_size_exception.dart';
+import '../widgets/file_size_exceed_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -546,7 +548,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       // Upload avatar if image is selected
       if (_selectedImage != null) {
-        avatarUrl = await ApiService.uploadAvatar(_selectedImage!);
+        try {
+          avatarUrl = await ApiService.uploadAvatar(_selectedImage!);
+        } catch (e) {
+          if (e is FileSizeException) {
+            await FileSizeExceedDialog.show(
+              context,
+              message: e.message,
+              showUpgradeOption: false, // Avatar limit applies to all users
+            );
+            setState(() => _isLoading = false);
+            return;
+          } else {
+            rethrow; // Re-throw other exceptions
+          }
+        }
       }
 
       final updatedUser = await ApiService.updateProfile(

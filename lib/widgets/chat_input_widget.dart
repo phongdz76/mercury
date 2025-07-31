@@ -5,7 +5,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/chat_provider.dart';
 import '../constants/app_constants.dart';
+import '../constants/file_constants.dart';
 import '../widgets/message_reply_widgets.dart';
+import '../utils/file_upload_helper.dart';
+import '../widgets/file_upload_limit_info.dart';
 
 class ChatInputWidget extends StatefulWidget {
   final TextEditingController messageController;
@@ -171,6 +174,22 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
     String messageType,
     String dialogTitle,
   ) async {
+    // Check file size FIRST before showing caption dialog
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final fileSize = await file.length();
+    final isPremium = chatProvider.currentUser?.isPremium ?? false;
+
+    // If file is too large, show size limit dialog immediately
+    if (!FileConstants.isFileSizeAllowed(fileSize, isPremium)) {
+      await FileUploadHelper.uploadFileWithLimitCheck(
+        context,
+        conversationId: widget.conversationId,
+        file: file,
+        type: messageType,
+      );
+      return; // Exit early if file is too large
+    }
+
     final captionController = TextEditingController();
     String? caption;
 
@@ -184,6 +203,7 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('File: ${file.path.split('/').last}'),
+              Text('Size: ${FileConstants.formatFileSize(fileSize)}'),
               const SizedBox(height: 16),
               TextField(
                 controller: captionController,
@@ -216,20 +236,21 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
       try {
         widget.setUploading(true);
 
-        final chatProvider = context.read<ChatProvider>();
-
-        // First, add the file as pending attachment
-        await chatProvider.addPendingAttachment(
+        // Use FileUploadHelper to handle file size checking (again for safety)
+        final success = await FileUploadHelper.uploadFileWithLimitCheck(
+          context,
           conversationId: widget.conversationId,
           file: file,
           type: messageType,
         );
 
-        // Then send the message with pending attachments and caption
-        await chatProvider.sendMessageWithPendingAttachments(
-          conversationId: widget.conversationId,
-          content: caption ?? '',
-        );
+        if (success) {
+          // Send the message with pending attachments and caption
+          await chatProvider.sendMessageWithPendingAttachments(
+            conversationId: widget.conversationId,
+            content: caption ?? '',
+          );
+        }
 
         widget.setUploading(false);
       } catch (e) {
@@ -261,6 +282,11 @@ class _ChatInputWidgetState extends State<ChatInputWidget> {
                 AppStrings.selectAttachment,
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
+              const SizedBox(height: 8),
+
+              // File size limit info
+              const CompactFileUploadLimitInfo(),
+
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,

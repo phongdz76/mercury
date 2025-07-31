@@ -3,6 +3,9 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'base_service.dart';
+import '../constants/file_constants.dart';
+import '../exceptions/file_size_exception.dart';
+import '../models/user.dart';
 
 class UploadService extends BaseService {
   // Helper function to determine mime type
@@ -35,6 +38,12 @@ class UploadService extends BaseService {
 
   static Future<String> uploadAvatar(File imageFile) async {
     try {
+      // Check avatar file size limit
+      final fileLength = await imageFile.length();
+      if (!FileConstants.isAvatarSizeAllowed(fileLength)) {
+        throw FileSizeException(FileConstants.avatarTooLarge);
+      }
+
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${BaseService.baseUrl}/upload/avatar'),
@@ -46,7 +55,6 @@ class UploadService extends BaseService {
 
       // Add file to request
       final fileStream = http.ByteStream(imageFile.openRead());
-      final fileLength = await imageFile.length();
 
       final multipartFile = http.MultipartFile(
         'file',
@@ -78,9 +86,21 @@ class UploadService extends BaseService {
 
   static Future<Map<String, dynamic>> uploadMessageFile(
     File file,
-    String conversationId,
-  ) async {
+    String conversationId, {
+    User? currentUser,
+  }) async {
     try {
+      // Check file size limit based on user premium status
+      final fileLength = await file.length();
+      final isPremium = currentUser?.isPremium ?? false;
+
+      if (!FileConstants.isFileSizeAllowed(fileLength, isPremium)) {
+        throw FileSizeException(
+          FileConstants.getFileTooLargeMessage(isPremium),
+          isPremiumRequired: !isPremium,
+        );
+      }
+
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('${BaseService.baseUrl}/upload/attachment'),
@@ -92,7 +112,6 @@ class UploadService extends BaseService {
 
       // Add file to request
       final fileStream = http.ByteStream(file.openRead());
-      final fileLength = await file.length();
 
       // Determine content type based on file extension
       final mimetype = getMimeType(file.path);

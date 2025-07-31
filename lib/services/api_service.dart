@@ -152,8 +152,13 @@ class ApiService {
 
   static Future<Map<String, dynamic>> uploadMessageFile(
     File file,
-    String conversationId,
-  ) => UploadService.uploadMessageFile(file, conversationId);
+    String conversationId, {
+    User? currentUser,
+  }) => UploadService.uploadMessageFile(
+    file,
+    conversationId,
+    currentUser: currentUser,
+  );
 
   // Send message with file attachment - use MessageService instead
   static Future<Message> sendMessageWithFile({
