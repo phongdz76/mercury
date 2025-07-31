@@ -710,10 +710,13 @@ class _ChatScreenState extends State<ChatScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.network(
-              ApiConstants.baseUrl +
-                  ApiConstants.attachments +
-                  '/' +
-                  message.attachments!.first.url,
+              // Check if URL is already full URL or needs base URL
+              message.attachments!.first.url.startsWith('http')
+                  ? message.attachments!.first.url
+                  : ApiConstants.baseUrl +
+                        ApiConstants.attachments +
+                        '/' +
+                        message.attachments!.first.url,
               width: double.infinity,
               fit: BoxFit.cover,
               loadingBuilder: (context, child, loadingProgress) {

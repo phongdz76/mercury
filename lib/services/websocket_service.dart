@@ -100,11 +100,22 @@ class WebSocketService {
     required String content,
     required String type,
     String? replyTo,
+    List<Map<String, dynamic>>? attachments,
   }) {
+    final data = <String, dynamic>{'content': content, 'type': type};
+
+    if (replyTo != null) {
+      data['replyTo'] = replyTo;
+    }
+
+    if (attachments != null && attachments.isNotEmpty) {
+      data['attachments'] = attachments;
+    }
+
     _send({
       'type': 'send_message',
       'conversationId': conversationId,
-      'data': {'content': content, 'type': type, 'replyTo': replyTo},
+      'data': data,
     });
   }
 

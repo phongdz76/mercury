@@ -884,18 +884,36 @@ class ChatProvider extends ChangeNotifier {
       _isLoading = true;
       notifyListeners();
 
-      // Upload file first
-      await ApiService.uploadMessageFile(file, conversationId);
+      // Upload file first and get file info
+      final uploadResult = await ApiService.uploadMessageFile(
+        file,
+        conversationId,
+      );
 
-      // Get file info
-      final fileName = file.path.split('/').last;
+      // Extract file info from upload result
+      final fileUrl = uploadResult['url'] as String;
+      final fileName = uploadResult['name'] as String;
+      final fileSize = uploadResult['size'] as int;
+      final mimeType = uploadResult['mimetype'] as String;
 
-      // Send message via WebSocket only
+      // Prepare attachment data for WebSocket
+      final attachments = [
+        {
+          'name': fileName,
+          'url': fileUrl,
+          'type': type.toUpperCase(), // FILE, IMAGE, etc.
+          'size': fileSize,
+          'mimeType': mimeType,
+        },
+      ];
+
+      // Send message with attachment via WebSocket
       _webSocketService.sendMessage(
         conversationId: conversationId,
         content: caption ?? fileName,
         type: type,
         replyTo: replyTo,
+        attachments: attachments,
       );
 
       _isLoading = false;
